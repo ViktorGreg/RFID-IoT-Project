@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CCS Attendance Tracker — WMSU</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --maroon: #7B1C24;
+      --maroon-dark: #5A1219;
+      --maroon-light: #9e2430;
+      --cream: #faf8f5;
+      --card-bg: rgba(255,255,255,0.97);
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --border: #e0dbd4;
+      --error: #c0392b;
+      --success: #1a7a4a;
+      --shadow: 0 20px 60px rgba(0,0,0,0.25), 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: 'DM Sans', sans-serif;
+      background: #1a0a0c;
+      overflow: hidden;
+    }
+
+    /* ─── BACKGROUND ─── */
+    .bg {
+      position: fixed; inset: 0;
+      background: #2a1015;
+      overflow: hidden;
+    }
+
+    /* Campus image placeholder */
+    .bg-image-placeholder {
+      position: absolute; inset: 0;
+      background:
+        linear-gradient(160deg, rgba(80,15,22,0.55) 0%, rgba(20,8,10,0.7) 100%),
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 2px,
+          rgba(255,255,255,0.015) 2px,
+          rgba(255,255,255,0.015) 4px
+        );
+      /* Replace url(...) below with your campus image */
+      /* background-image: url('campus.jpg'); background-size: cover; background-position: center; */
+    }
+
+    /* Atmospheric blobs */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.35;
+      animation: drift 18s ease-in-out infinite alternate;
+    }
+    .blob-1 { width: 520px; height: 420px; background: var(--maroon); top: -100px; left: -120px; animation-delay: 0s; }
+    .blob-2 { width: 400px; height: 500px; background: #3d0e14; bottom: -100px; right: -80px; animation-delay: -6s; }
+    .blob-3 { width: 300px; height: 300px; background: #6b1020; top: 40%; left: 55%; animation-delay: -12s; }
+
+    @keyframes drift {
+      0%   { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(30px, 40px) scale(1.08); }
+    }
+
+    /* Campus placeholder hint */
+    .campus-hint {
+      position: absolute;
+      bottom: 20px; left: 50%;
+      transform: translateX(-50%);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      color: rgba(255,255,255,0.25);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    /* Tree silhouette decorative lines */
+    .scene-overlay {
+      position: absolute; inset: 0;
+      background: linear-gradient(to top,
+        rgba(15,4,6,0.75) 0%,
+        transparent 45%,
+        rgba(0,0,0,0.2) 100%
+      );
+    }
+
+    /* ─── LAYOUT ─── */
+    .page {
+      position: relative; z-index: 2;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── HEADER ─── */
+    header {
+      background: var(--maroon-dark);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 0 24px;
+      height: 56px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.45);
+      flex-shrink: 0;
+    }
+
+    .header-logo {
+      width: 38px; height: 38px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.15);
+      border: 2px solid rgba(255,255,255,0.3);
+      display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* University seal placeholder */
+    .header-logo svg {
+      width: 22px; height: 22px;
+      opacity: 0.85;
+    }
+
+    header h1 {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 600;
+      font-size: 15px;
+      color: #fff;
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── MAIN ─── */
+    main {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ─── CARD ─── */
+    .card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      width: 100%;
+      max-width: 440px;
+      padding: 40px 44px 36px;
+      border: 1px solid rgba(255,255,255,0.6);
+      animation: cardIn 0.55s cubic-bezier(0.16,1,0.3,1) both;
+    }
+
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(24px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* ─── CARD HEADER ─── */
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 32px;
+    }
+
+    .seal {
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      border: 2.5px solid var(--maroon);
+      background: #f5f0eb;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    /* Seal placeholder - replace with <img> */
+    .seal-placeholder {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 3px;
+      color: var(--maroon);
+    }
+
+    .seal-placeholder svg { width: 26px; height: 26px; }
+
+    .card-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 16.5px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .card-title span {
+      display: block;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--maroon);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 3px;
+    }
+
+    /* ─── FORM ─── */
+    .form-group {
+      position: relative;
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap svg {
+      position: absolute;
+      left: 13px; top: 50%;
+      transform: translateY(-50%);
+      width: 16px; height: 16px;
+      color: #aaa;
+      pointer-events: none;
+      transition: color 0.2s;
+    }
+
+    input[type="email"],
+    input[type="password"],
+    input[type="text"] {
+      width: 100%;
+      padding: 11px 40px 11px 38px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus {
+      border-color: var(--maroon);
+      box-shadow: 0 0 0 3px rgba(123,28,36,0.1);
+    }
+
+    input:focus + svg,
+    .input-wrap:focus-within svg { color: var(--maroon); }
+
+    input.error-input { border-color: var(--error); }
+    input.error-input:focus { box-shadow: 0 0 0 3px rgba(192,57,43,0.1); }
+
+    /* Password toggle */
+    .pw-toggle {
+      position: absolute;
+      right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none;
+      cursor: pointer;
+      color: #aaa;
+      display: flex; align-items: center;
+      padding: 2px;
+      transition: color 0.2s;
+    }
+    .pw-toggle:hover { color: var(--maroon); }
+    .pw-toggle svg { width: 16px; height: 16px; }
+
+    /* Error message */
+    .field-error {
+      font-size: 11.5px;
+      color: var(--error);
+      margin-top: 5px;
+      display: none;
+      align-items: center;
+      gap: 4px;
+    }
+    .field-error.show { display: flex; }
+
+    /* Alert banner */
+    .alert {
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      animation: fadeIn 0.2s ease;
+    }
+    .alert.show { display: flex; }
+    .alert-error { background: #fdf0ef; color: var(--error); border: 1px solid rgba(192,57,43,0.2); }
+    .alert-success { background: #edf7f1; color: var(--success); border: 1px solid rgba(26,122,74,0.2); }
+    .alert svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Rate limit */
+    .rate-msg {
+      font-size: 12px; color: var(--error);
+      text-align: center; margin-bottom: 12px;
+      display: none;
+    }
+    .rate-msg.show { display: block; }
+
+    /* Login button */
+    .btn-login {
+      width: 100%;
+      padding: 13px;
+      background: var(--maroon-dark);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14.5px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      margin-top: 8px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-login::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
+    }
+
+    .btn-login:hover:not(:disabled) {
+      background: var(--maroon-light);
+      box-shadow: 0 6px 20px rgba(123,28,36,0.4);
+    }
+    .btn-login:active:not(:disabled) { transform: scale(0.985); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.35);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      display: none;
+    }
+    .spinner.show { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .btn-text { transition: opacity 0.2s; }
+
+    /* Forgot password */
+    .forgot-wrap {
+      text-align: center;
+      margin-top: 18px;
+    }
+
+    .forgot-wrap a {
+      font-size: 13px;
+      color: var(--maroon);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .forgot-wrap a:hover { color: var(--maroon-dark); }
+
+    /* ─── LOGGED IN STATE ─── */
+    .dashboard {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+    }
+    .dashboard.show { display: flex; }
+
+    .dashboard-icon {
+      width: 64px; height: 64px;
+      background: linear-gradient(135deg, var(--maroon) 0%, var(--maroon-dark) 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      box-shadow: 0 8px 24px rgba(123,28,36,0.4);
+    }
+
+    .dashboard-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+    }
+
+    .user-badge {
+      background: #f4efeb;
+      border: 1.5px solid var(--border);
+      border-radius: 100px;
+      padding: 8px 18px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .user-badge strong { color: var(--maroon); }
+
+    .session-info {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .btn-logout {
+      padding: 11px 32px;
+      background: #fff;
+      color: var(--maroon-dark);
+      border: 2px solid var(--maroon-dark);
+      border-radius: 8px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 8px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-logout:hover { background: var(--maroon-dark); color: #fff; }
+    .btn-logout svg { width: 15px; height: 15px; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      text-align: center;
+      padding: 12px;
+      font-size: 11px;
+      color: rgba(255,255,255,0.2);
+      position: relative; z-index: 2;
+    }
+
+    @media (max-width: 480px) {
+      .card { padding: 32px 24px 28px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── BACKGROUND ── -->
+<div class="bg">
+  <div class="bg-image-placeholder">
+    <!--
+      TO ADD CAMPUS PHOTO:
+      Replace this div's background with:
+      background-image: url('campus.jpg'); background-size: cover; background-position: center;
+      Or use an <img> tag positioned absolutely inside .bg
+    -->
+  </div>
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+  <div class="scene-overlay"></div>
+  <p class="campus-hint">[ campus photo placeholder ]</p>
+</div>
+
+<!-- ── PAGE ── -->
+<div class="page">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-logo">
+      <!-- Replace with actual university seal <img> -->
+      <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+        <circle cx="12" cy="12" r="9"/>
+        <path d="M12 3v4M12 17v4M3 12h4M17 12h4"/>
+        <circle cx="12" cy="12" r="3" fill="white" stroke="none"/>
+      </svg>
+    </div>
+    <h1>Western Mindanao State University</h1>
+  </header>
+
+  <!-- MAIN -->
+  <main>
+    <div class="card">
+
+      <!-- LOGIN FORM -->
+      <div id="loginView">
+        <div class="card-header">
+          <div class="seal">
+            <!-- Replace with: <img src="wmsu-seal.png" alt="WMSU Seal" style="width:100%;height:100%;object-fit:cover;"> -->
+            <div class="seal-placeholder">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="9"/>
+                <path d="M9 12l2 2 4-4"/>
+                <circle cx="12" cy="7" r="1.5" fill="currentColor" stroke="none"/>
+              </svg>
+            </div>
+          </div>
+          <div class="card-title">
+            <span>College of Computing Studies</span>
+            Attendance Tracker
+          </div>
+        </div>
+
+        <!-- Alert banner -->
+        <div class="alert alert-error" id="alertBanner" role="alert">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+          <span id="alertMsg"></span>
+        </div>
+
+        <!-- Rate limit -->
+        <p class="rate-msg" id="rateMsg" aria-live="polite"></p>
+
+        <form id="loginForm" novalidate autocomplete="off">
+
+          <!-- Email -->
+          <div class="form-group">
+            <label for="emailInput">Email Address</label>
+            <div class="input-wrap">
+              <input type="email" id="emailInput" placeholder="Enter your email" autocomplete="username" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="2" y="4" width="20" height="16" rx="3"/><path d="M22 7l-10 7L2 7"/>
+              </svg>
+            </div>
+            <p class="field-error" id="emailError" role="alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span></span>
+            </p>
+          </div>
+
+          <!-- Password -->
+          <div class="form-group">
+            <label for="passwordInput">Password</label>
+            <div class="input-wrap">
+              <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/>
+              </svg>
+              <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">
+                <svg id="eyeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+            <p class="field-error" id="passwordError" role="alert">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span></span>
+            </p>
+          </div>
+
+          <button type="submit" class="btn-login" id="loginBtn">
+            <div class="spinner" id="spinner"></div>
+            <span class="btn-text" id="btnText">Login</span>
+          </button>
+
+        </form>
+
+        <div class="forgot-wrap">
+          <a href="#" id="forgotLink">Forgot password</a>
+        </div>
+      </div>
+
+      <!-- DASHBOARD (after login) -->
+      <div class="dashboard" id="dashView">
+        <div class="dashboard-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="30" height="30">
+            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+        <p class="dashboard-title">Welcome back!</p>
+        <div class="user-badge">Logged in as <strong id="loggedUser"></strong></div>
+        <p class="session-info" id="sessionInfo"></p>
+        <button class="btn-logout" id="logoutBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Logout
+        </button>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>© 2025 Western Mindanao State University — College of Computing Studies</footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ─── CONFIG ─── */
+  const MAX_ATTEMPTS  = 5;         // max failed logins before lockout
+  const LOCKOUT_MS    = 5 * 60 * 1000; // 5 minutes lockout
+  const SESSION_MS    = 30 * 60 * 1000; // 30 min session timeout
+  const TOKEN_BYTES   = 32;
+
+  /* ─── DEMO credentials (replace with real backend auth) ─── */
+  const DEMO_USERS = [
+    { email: 'admin@wmsu.edu.ph', password: 'Admin@1234' }
+  ];
+
+  /* ─── STATE ─── */
+  let attempts    = parseInt(sessionStorage.getItem('ccs_attempts') || '0', 10);
+  let lockUntil   = parseInt(sessionStorage.getItem('ccs_lock') || '0', 10);
+  let sessionTimer = null;
+
+  /* ─── ELEMENTS ─── */
+  const loginView    = document.getElementById('loginView');
+  const dashView     = document.getElementById('dashView');
+  const loginForm    = document.getElementById('loginForm');
+  const emailInput   = document.getElementById('emailInput');
+  const passwordInput= document.getElementById('passwordInput');
+  const loginBtn     = document.getElementById('loginBtn');
+  const spinner      = document.getElementById('spinner');
+  const btnText      = document.getElementById('btnText');
+  const alertBanner  = document.getElementById('alertBanner');
+  const alertMsg     = document.getElementById('alertMsg');
+  const rateMsg      = document.getElementById('rateMsg');
+  const emailError   = document.getElementById('emailError');
+  const passwordError= document.getElementById('passwordError');
+  const pwToggle     = document.getElementById('pwToggle');
+  const eyeIcon      = document.getElementById('eyeIcon');
+  const loggedUser   = document.getElementById('loggedUser');
+  const sessionInfo  = document.getElementById('sessionInfo');
+  const logoutBtn    = document.getElementById('logoutBtn');
+  const forgotLink   = document.getElementById('forgotLink');
+
+  /* ─── UTILITIES ─── */
+  function generateToken() {
+    const arr = new Uint8Array(TOKEN_BYTES);
+    crypto.getRandomValues(arr);
+    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  function sanitize(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
+  }
+
+  function isStrongish(pw) {
+    // At least 8 chars, 1 uppercase, 1 lowercase, 1 digit
+    return pw.length >= 8 && /[A-Z]/.test(pw) && /[a-z]/.test(pw) && /\d/.test(pw);
+  }
+
+  function showFieldError(el, msg) {
+    el.querySelector('span').textContent = msg;
+    el.classList.add('show');
+    el.previousElementSibling.querySelector('input').classList.add('error-input');
+  }
+
+  function clearFieldError(el) {
+    el.classList.remove('show');
+    const inp = el.previousElementSibling?.querySelector('input');
+    if (inp) inp.classList.remove('error-input');
+  }
+
+  function showAlert(msg, type = 'error') {
+    alertBanner.className = `alert alert-${type} show`;
+    alertMsg.textContent = msg;
+  }
+
+  function hideAlert() {
+    alertBanner.classList.remove('show');
+  }
+
+  function setLoading(on) {
+    loginBtn.disabled = on;
+    spinner.classList.toggle('show', on);
+    btnText.textContent = on ? 'Verifying…' : 'Login';
+  }
+
+  /* ─── RATE LIMITING ─── */
+  function isLockedOut() {
+    return Date.now() < lockUntil;
+  }
+
+  function incrementAttempts() {
+    attempts++;
+    sessionStorage.setItem('ccs_attempts', attempts);
+    if (attempts >= MAX_ATTEMPTS) {
+      lockUntil = Date.now() + LOCKOUT_MS;
+      sessionStorage.setItem('ccs_lock', lockUntil);
+      startLockTimer();
+    }
+  }
+
+  function resetAttempts() {
+    attempts = 0;
+    lockUntil = 0;
+    sessionStorage.removeItem('ccs_attempts');
+    sessionStorage.removeItem('ccs_lock');
+    rateMsg.classList.remove('show');
+  }
+
+  let lockInterval = null;
+  function startLockTimer() {
+    loginBtn.disabled = true;
+    lockInterval && clearInterval(lockInterval);
+    lockInterval = setInterval(() => {
+      const rem = Math.max(0, Math.ceil((lockUntil - Date.now()) / 1000));
+      if (rem <= 0) {
+        clearInterval(lockInterval);
+        attempts = 0;
+        lockUntil = 0;
+        sessionStorage.removeItem('ccs_attempts');
+        sessionStorage.removeItem('ccs_lock');
+        loginBtn.disabled = false;
+        rateMsg.classList.remove('show');
+        hideAlert();
+      } else {
+        const m = Math.floor(rem / 60), s = rem % 60;
+        rateMsg.textContent = `Too many failed attempts. Try again in ${m}:${String(s).padStart(2,'0')}.`;
+        rateMsg.classList.add('show');
+        showAlert(`Account temporarily locked. Wait ${m}:${String(s).padStart(2,'0')}.`);
+      }
+    }, 1000);
+  }
+
+  /* ─── SESSION ─── */
+  function startSession(email) {
+    const token = generateToken();
+    const expiry = Date.now() + SESSION_MS;
+    sessionStorage.setItem('ccs_token', token);
+    sessionStorage.setItem('ccs_user', email);
+    sessionStorage.setItem('ccs_expiry', expiry);
+
+    clearTimeout(sessionTimer);
+    sessionTimer = setTimeout(() => {
+      sessionExpired();
+    }, SESSION_MS);
+
+    showDashboard(email, expiry);
+  }
+
+  function sessionExpired() {
+    clearSession();
+    showLoginView();
+    showAlert('Session expired. Please log in again.');
+  }
+
+  function clearSession() {
+    sessionStorage.removeItem('ccs_token');
+    sessionStorage.removeItem('ccs_user');
+    sessionStorage.removeItem('ccs_expiry');
+    clearTimeout(sessionTimer);
+  }
+
+  function checkExistingSession() {
+    const token  = sessionStorage.getItem('ccs_token');
+    const user   = sessionStorage.getItem('ccs_user');
+    const expiry = parseInt(sessionStorage.getItem('ccs_expiry') || '0', 10);
+    if (token && user && Date.now() < expiry) {
+      const remaining = expiry - Date.now();
+      clearTimeout(sessionTimer);
+      sessionTimer = setTimeout(sessionExpired, remaining);
+      showDashboard(user, expiry);
+    }
+  }
+
+  /* ─── UI TRANSITIONS ─── */
+  function showDashboard(email, expiry) {
+    loginView.style.display  = 'none';
+    dashView.classList.add('show');
+    loggedUser.textContent = sanitize(email);
+
+    const exp = new Date(expiry);
+    sessionInfo.textContent = `Session expires at ${exp.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+  }
+
+  function showLoginView() {
+    dashView.classList.remove('show');
+    loginView.style.display = '';
+    emailInput.value = '';
+    passwordInput.value = '';
+    hideAlert();
+    clearFieldError(emailError);
+    clearFieldError(passwordError);
+  }
+
+  /* ─── VALIDATION ─── */
+  function validateForm() {
+    let valid = true;
+    clearFieldError(emailError);
+    clearFieldError(passwordError);
+    hideAlert();
+
+    const email = emailInput.value.trim();
+    const pw    = passwordInput.value;
+
+    if (!email) {
+      showFieldError(emailError, 'Email is required.');
+      valid = false;
+    } else if (!isValidEmail(email)) {
+      showFieldError(emailError, 'Please enter a valid email address.');
+      valid = false;
+    }
+
+    if (!pw) {
+      showFieldError(passwordError, 'Password is required.');
+      valid = false;
+    } else if (pw.length < 8) {
+      showFieldError(passwordError, 'Password must be at least 8 characters.');
+      valid = false;
+    }
+
+    return valid;
+  }
+
+  /* ─── LOGIN ─── */
+  loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    if (isLockedOut()) {
+      startLockTimer();
+      return;
+    }
+
+    if (!validateForm()) return;
+
+    const email = emailInput.value.trim().toLowerCase();
+    const pw    = passwordInput.value;
+
+    setLoading(true);
+
+    // Simulate async auth call (replace with real fetch to backend)
+    await new Promise(r => setTimeout(r, 800 + Math.random() * 400));
+
+    const user = DEMO_USERS.find(
+      u => u.email.toLowerCase() === email && u.password === pw
+    );
+
+    setLoading(false);
+
+    if (user) {
+      resetAttempts();
+      startSession(user.email);
+    } else {
+      incrementAttempts();
+      const remaining = MAX_ATTEMPTS - attempts;
+      if (isLockedOut()) {
+        startLockTimer();
+      } else {
+        showAlert(
+          remaining > 0
+            ? `Invalid email or password. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.`
+            : 'Invalid email or password.'
+        );
+        // Clear password for security
+        passwordInput.value = '';
+        passwordInput.focus();
+      }
+    }
+  });
+
+  /* ─── LOGOUT ─── */
+  logoutBtn.addEventListener('click', () => {
+    clearSession();
+    showLoginView();
+  });
+
+  /* ─── PASSWORD VISIBILITY TOGGLE ─── */
+  pwToggle.addEventListener('click', () => {
+    const isHidden = passwordInput.type === 'password';
+    passwordInput.type = isHidden ? 'text' : 'password';
+    pwToggle.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+    eyeIcon.innerHTML = isHidden
+      ? `<line x1="1" y1="1" x2="23" y2="23"/><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/>`
+      : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`;
+  });
+
+  /* ─── FORGOT PASSWORD ─── */
+  forgotLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    const email = emailInput.value.trim();
+    if (email && isValidEmail(email)) {
+      showAlert(`Password reset link sent to ${sanitize(email)}.`, 'success');
+      alertBanner.className = 'alert alert-success show';
+    } else {
+      emailInput.focus();
+      showFieldError(emailError, 'Enter your email above first.');
+    }
+  });
+
+  /* ─── CLEAR ERRORS ON INPUT ─── */
+  emailInput.addEventListener('input', () => clearFieldError(emailError));
+  passwordInput.addEventListener('input', () => clearFieldError(passwordError));
+
+  /* ─── TAB VISIBILITY — clear session on prolonged hide ─── */
+  let hiddenAt = null;
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      hiddenAt = Date.now();
+    } else if (hiddenAt) {
+      const away = Date.now() - hiddenAt;
+      if (away > SESSION_MS) sessionExpired();
+    }
+  });
+
+  /* ─── LOCKOUT ON LOAD (if locked from previous session in tab) ─── */
+  if (isLockedOut()) startLockTimer();
+
+  /* ─── CHECK EXISTING SESSION ─── */
+  checkExistingSession();
+
+})();
+</script>
+</body>
+</html>

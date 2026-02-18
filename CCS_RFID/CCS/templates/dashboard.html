@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Attendance Tracker System{% endblock %}
+
+{% block content %}
+<!-- Welcome Banner -->
+<div class="relative rounded-2xl overflow-hidden mb-5 bg-maroon-dark banner-noise shadow-lg">
+  <!-- Decorative circle -->
+  <div class="absolute -right-10 -top-10 w-52 h-52 rounded-full bg-white/5"></div>
+  <div class="absolute right-20 -bottom-12 w-40 h-40 rounded-full bg-white/5"></div>
+
+  <div class="relative z-10 p-6 md:p-7">
+    <h1 class="text-white text-2xl md:text-3xl font-bold tracking-tight mb-1">
+      Hello {{ user.get_full_name|default:"Sir Edwin Arip" }}
+    </h1>
+    <p class="text-white/70 text-sm font-medium mb-1">
+      Welcome back, {{ user.first_name|default:"Teacher Greggy" }}!
+    </p>
+    <p class="text-white/50 text-xs mb-5">
+      Ready to create amazing lessons with AI assistance?<br>
+      Let's make learning exciting today!
+    </p>
+
+    <div class="flex flex-wrap gap-3">
+      <!-- Start a class -->
+      <a href="#"
+         class="inline-flex items-center gap-2 px-4 py-2.5 bg-maroon rounded-lg text-white text-sm font-semibold
+                border border-white/10 hover:bg-maroon-light transition-colors shadow-md">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Start a class
+      </a>
+
+      <!-- Upload Masterlist -->
+      <a href="#"
+         class="inline-flex items-center gap-2 px-4 py-2.5 bg-maroon rounded-lg text-white text-sm font-semibold
+                border border-white/10 hover:bg-maroon-light transition-colors shadow-md">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Upload Masterlist
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+
+  <!-- Weekly Class -->
+  <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+    <div>
+      <p class="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-3">Weekly Class</p>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-maroon/10 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="text-right">
+      <p class="text-4xl font-bold text-gray-800 leading-none">
+        {{ stats.weekly_classes|default:"4" }}
+      </p>
+      <p class="text-xs text-gray-400 mt-1">this week</p>
+    </div>
+  </div>
+
+  <!-- Ave. Absences per class -->
+  <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
+    <div>
+      <p class="text-gray-500 text-xs font-semibold uppercase tracking-widest mb-3">Ave. Absences per class</p>
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 bg-maroon/10 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+    <div class="text-right">
+      <p class="text-4xl font-bold text-gray-800 leading-none">
+        {{ stats.avg_absences|default:"3.02" }}%
+      </p>
+      <p class="text-xs text-gray-400 mt-1">average rate</p>
+    </div>
+  </div>
+
+</div>
+
+<!-- Today's Class -->
+<div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+  <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+    <h2 class="text-sm font-semibold text-gray-700 tracking-wide">Today's Class</h2>
+    <span class="text-xs text-maroon font-medium bg-maroon/8 px-2.5 py-1 rounded-full">
+      {{ today_classes|length|default:"2" }} classes
+    </span>
+  </div>
+
+  <div class="divide-y divide-gray-50">
+    {% for cls in today_classes %}
+    <div class="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors group">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-maroon flex-shrink-0"></div>
+        <div>
+          <p class="text-sm font-medium text-gray-800 group-hover:text-maroon transition-colors">
+            {{ cls.name }}
+          </p>
+          {% if cls.room %}
+          <p class="text-xs text-gray-400 mt-0.5">
+            Room {{ cls.room }}
+          </p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-semibold text-gray-600 tabular-nums">
+          {{ cls.time }}
+        </span>
+        <a href="#"
+           class="text-xs text-maroon font-medium opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-md bg-maroon/8 hover:bg-maroon/15">
+          Take attendance
+        </a>
+      </div>
+    </div>
+    {% empty %}
+    <!-- Fallback example rows when no classes -->
+    <div class="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors group">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-maroon flex-shrink-0"></div>
+        <div>
+          <p class="text-sm font-medium text-gray-800 group-hover:text-maroon transition-colors">
+            Advance Database
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-semibold text-gray-600 tabular-nums">7:00AM</span>
+        <a href="#"
+           class="text-xs text-maroon font-medium opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-md bg-maroon/8 hover:bg-maroon/15">
+          Take attendance
+        </a>
+      </div>
+    </div>
+
+    <div class="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 transition-colors group">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full bg-maroon/40 flex-shrink-0"></div>
+        <div>
+          <p class="text-sm font-medium text-gray-800 group-hover:text-maroon transition-colors">
+            App Dev
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span class="text-sm font-semibold text-gray-600 tabular-nums">4:00PM</span>
+        <a href="#"
+           class="text-xs text-maroon font-medium opacity-0 group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-md bg-maroon/8 hover:bg-maroon/15">
+          Take attendance
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+<!-- /Today's Class -->
+{% endblock %}

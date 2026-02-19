@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 font-sans bg-white max-w-[760px]">
+  <!-- Title -->
+  <h2 class="mb-5 text-[22px] font-bold text-gray-900">Attendance</h2>
+
+  <!-- Controls Row -->
+  <div class="flex items-center gap-3 mb-5">
+    <select class="px-3.5 py-2.5 border-2 border-gray-300 rounded-lg text-sm bg-white min-w-[160px] outline-none cursor-pointer appearance-none text-gray-900">
+      <option value="" disabled selected>Select Class</option>
+      <option>Mathematics 101</option>
+      <option>English Literature</option>
+    </select>
+
+    <select class="px-3.5 py-2.5 border-2 border-gray-300 rounded-lg text-sm bg-white min-w-[140px] outline-none cursor-pointer appearance-none text-gray-900">
+      <option value="" disabled selected>Section</option>
+      <option>Section A</option>
+      <option>Section B</option>
+      <option>Section C</option>
+    </select>
+
+    <button class="ml-auto px-6 py-2.5 bg-[#9b1c1c] border-none rounded-lg text-white text-sm font-semibold cursor-pointer">
+      Take Attendance
+    </button>
+  </div>
+
+  <!-- Student List -->
+  <div class="border-2 border-gray-300 rounded-lg overflow-hidden">
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+    <div class="px-4 py-3.5 border-b border-gray-300 text-sm font-semibold text-gray-900 bg-white">John Doe</div>
+
+    <!-- Empty notes area at bottom -->
+    <textarea rows="4" class="w-full border-none outline-none resize-none p-3 px-4 text-sm font-sans text-gray-700 bg-white box-border" placeholder=""></textarea>
+  </div>
+</div>
+{% endblock %}

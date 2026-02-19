@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#f0f2f5] min-h-screen flex items-center justify-center p-8">
+  <div class="bg-white rounded-xl p-6 pb-[60px] w-full max-w-[620px] shadow-[0_2px_16px_rgba(0,0,0,0.08)]">
+    <h1 class="text-xl font-bold text-gray-900 underline mb-[18px]">Activity Log</h1>
+    
+    <!-- Log List -->
+    <div class="flex flex-col gap-0 border border-gray-300 rounded-lg overflow-hidden" id="logList"></div>
+  </div>
+
+  <script>
+    const logs = [
+      { name: "John Doe", status: "Present" },
+      { name: "John Doe", status: "Absent" },
+      { name: "John Doe", status: "Present" },
+      { name: "John Doe", status: "Present" },
+      { name: "John Doe", status: "Present" },
+      { name: "John Doe", status: "Present" },
+      { name: "John Doe", status: "Absent" },
+      { name: "John Doe", status: "Present" },
+      { name: "John Doe", status: "Present" },
+    ];
+
+    const list = document.getElementById("logList");
+
+    logs.forEach((log, i) => {
+      const item = document.createElement("div");
+      item.className = "flex items-center justify-between p-3.5 border-b border-gray-300 bg-white last:border-b-0";
+
+      const text = document.createElement("span");
+      text.className = "text-[13px] font-semibold text-gray-900";
+      text.textContent = `${log.name} is ${log.status}`;
+
+      const btn = document.createElement("button");
+      const isPresent = log.status === "Present";
+      
+      // Set initial button styling
+      if (isPresent) {
+        btn.className = "border-none rounded-md px-3.5 py-1.5 text-xs font-semibold font-['DM_Sans'] cursor-pointer whitespace-nowrap transition-opacity hover:opacity-85 bg-[#8B0000] text-white";
+        btn.textContent = "Change to Absent";
+      } else {
+        btn.className = "border-none rounded-md px-3.5 py-1.5 text-xs font-semibold font-['DM_Sans'] cursor-pointer whitespace-nowrap transition-opacity hover:opacity-85 bg-[#2e7d32] text-white";
+        btn.textContent = "Change to Present";
+      }
+
+      btn.addEventListener("click", () => {
+        const currentlyPresent = text.textContent.includes("is Present");
+        if (currentlyPresent) {
+          text.textContent = `${log.name} is Absent`;
+          btn.textContent = "Change to Present";
+          btn.className = "border-none rounded-md px-3.5 py-1.5 text-xs font-semibold font-['DM_Sans'] cursor-pointer whitespace-nowrap transition-opacity hover:opacity-85 bg-[#2e7d32] text-white";
+        } else {
+          text.textContent = `${log.name} is Present`;
+          btn.textContent = "Change to Absent";
+          btn.className = "border-none rounded-md px-3.5 py-1.5 text-xs font-semibold font-['DM_Sans'] cursor-pointer whitespace-nowrap transition-opacity hover:opacity-85 bg-[#8B0000] text-white";
+        }
+      });
+
+      item.appendChild(text);
+      item.appendChild(btn);
+      list.appendChild(item);
+    });
+  </script>
+
+{% endblock %}

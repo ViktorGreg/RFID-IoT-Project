@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'DM Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-[#f0f2f5] min-h-screen flex items-center justify-center p-8">
+  <div class="bg-white rounded-xl p-7 w-full max-w-[820px] shadow-[0_2px_16px_rgba(0,0,0,0.08)]">
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <h1 class="text-[22px] font-bold text-gray-900">Class Schedule</h1>
+        <p class="text-xs text-gray-500 mt-0.5">Manage your weekly class schedule (Working Hours: 6:00 AM - 7:00 PM)</p>
+      </div>
+      <button class="bg-[#8B0000] hover:bg-[#6a0000] text-white border-none rounded-md px-[18px] py-2.5 text-xs font-semibold font-['DM_Sans'] whitespace-nowrap transition-colors cursor-pointer">
+        Add Class Schedule
+      </button>
+    </div>
+
+    <!-- Schedule Table -->
+    <table class="w-full border-collapse border border-gray-300 rounded-lg overflow-hidden">
+      <!-- Table Header -->
+      <thead>
+        <tr>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300 w-20"></th>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300">Monday</th>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300">Tuesday</th>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300">Wednesday</th>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300">Thursday</th>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300">Friday</th>
+          <th class="bg-white text-xs font-semibold text-gray-700 p-2.5 border border-gray-300">Saturday</th>
+        </tr>
+      </thead>
+      
+      <!-- Table Body -->
+      <tbody id="scheduleBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const timeSlots = [
+      "6:00 AM", "7:00 AM", "8:00 AM", "9:00 AM",
+      "10:00 AM", "11:00 AM", "12:00 PM", "1:00 PM",
+      "2:00 PM", "3:00 PM", "4:00 PM", "5:00 PM", "6:00 PM"
+    ];
+
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+    // Sample class data - you can modify this
+    const classes = [
+      // { day: "Monday", timeIndex: 2, subject: "Mathematics", room: "Room 101" },
+      // { day: "Wednesday", timeIndex: 4, subject: "Physics", room: "Room 203" },
+    ];
+
+    const tbody = document.getElementById("scheduleBody");
+
+    timeSlots.forEach((time, tIdx) => {
+      const tr = document.createElement("tr");
+
+      // Time cell
+      const timeTd = document.createElement("td");
+      timeTd.className = "bg-[#d9d9d9] text-xs text-gray-700 font-medium p-1.5 w-20 h-[52px] align-middle text-center border border-gray-300";
+      timeTd.textContent = time;
+      tr.appendChild(timeTd);
+
+      // Day cells
+      days.forEach(day => {
+        const td = document.createElement("td");
+        td.className = "h-[52px] p-1 align-top relative min-w-[90px] border border-gray-300";
+
+        const match = classes.find(c => c.day === day && c.timeIndex === tIdx);
+        if (match) {
+          const div = document.createElement("div");
+          div.className = "bg-[#8B0000] text-white rounded-md p-1 text-[10px] font-semibold leading-tight cursor-pointer absolute left-[3px] right-[3px] top-[3px] z-10";
+          div.innerHTML = `${match.subject}<br><span class="font-normal text-[9px] opacity-85">${match.room}</span>`;
+          td.appendChild(div);
+        }
+
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    });
+
+    // Footer row (7:00 PM)
+    const footerTr = document.createElement("tr");
+    footerTr.className = "footer-row";
+    
+    const footerFirst = document.createElement("td");
+    footerFirst.className = "bg-[#d9d9d9] text-xs text-gray-700 font-medium p-1.5 h-[32px] align-middle text-center border border-gray-300";
+    footerFirst.textContent = "7:00 PM";
+    footerTr.appendChild(footerFirst);
+    
+    for (let i = 0; i < 6; i++) {
+      const td = document.createElement("td");
+      td.className = "bg-white h-8 text-xs text-gray-400 text-center p-1.5 border border-gray-300";
+      footerTr.appendChild(td);
+    }
+    
+    tbody.appendChild(footerTr);
+  </script>
+
+
+{% endblock %}

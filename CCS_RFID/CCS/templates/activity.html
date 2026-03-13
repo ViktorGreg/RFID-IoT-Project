@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="font-sans min-h-screen flex items-center justify-center p-8">
+  <div class="bg-white rounded-xl p-6 pb-[60px] w-full max-w-7xl shadow-lg">
+    <h1 class="text-2xl font-bold text-gray-900 underline mb-6">Activity Log</h1>
+    
+    <!-- Log List -->
+    <div class="flex flex-col gap-0 border border-gray-300 rounded-lg overflow-hidden" id="logList"></div>
+  </div>
+</div>
+
+<script>
+  (function() {
+    const logs = [
+      { name: "John Doe", status: "Present", time: "08:30 AM", class: "Mathematics 101", section: "Section A", id: "2024-1001" },
+      { name: "John Doe", status: "Absent", time: "08:30 AM", class: "Mathematics 101", section: "Section A", id: "2024-1002" },
+      { name: "John Doe", status: "Present", time: "09:30 AM", class: "Physics 201", section: "Section B", id: "2024-1003" },
+      { name: "John Doe", status: "Present", time: "09:30 AM", class: "Physics 201", section: "Section B", id: "2024-1004" },
+      { name: "John Doe", status: "Present", time: "11:00 AM", class: "English Literature", section: "Section C", id: "2024-1005" },
+      { name: "John Doe", status: "Present", time: "11:00 AM", class: "English Literature", section: "Section C", id: "2024-1006" },
+      { name: "John Doe", status: "Absent", time: "01:00 PM", class: "Computer Science", section: "Section A", id: "2024-1007" },
+      { name: "John Doe", status: "Present", time: "01:00 PM", class: "Computer Science", section: "Section A", id: "2024-1008" },
+      { name: "John Doe", status: "Present", time: "02:30 PM", class: "History 205", section: "Section B", id: "2024-1009" },
+      { name: "John Doe", status: "Late", time: "02:30 PM", class: "History 205", section: "Section B", id: "2024-1010" },
+      { name: "John Doe", status: "Present", time: "04:00 PM", class: "Physical Education", section: "Section C", id: "2024-1011" },
+    ];
+
+    const list = document.getElementById("logList");
+    if (!list) return;
+
+    list.innerHTML = '';
+
+    logs.forEach((log, i) => {
+      const item = document.createElement("div");
+      item.className = "flex flex-col lg:flex-row lg:items-center justify-between p-5 border-b border-gray-300 bg-white last:border-b-0 hover:bg-gray-50 transition";
+      
+      // Left section: Student info with grid layout for more width utilization
+      const leftDiv = document.createElement("div");
+      leftDiv.className = "grid grid-cols-1 md:grid-cols-4 gap-4 flex-1 mb-3 lg:mb-0";
+      
+      // Name column
+      const nameDiv = document.createElement("div");
+      nameDiv.className = "flex flex-col";
+      const nameLabel = document.createElement("span");
+      nameLabel.className = "text-xs text-gray-500 uppercase tracking-wider mb-0.5 lg:hidden";
+      nameLabel.textContent = "Student";
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "text-sm font-semibold text-gray-900";
+      nameSpan.textContent = log.name;
+      nameDiv.appendChild(nameLabel);
+      nameDiv.appendChild(nameSpan);
+      
+      // ID column
+      const idDiv = document.createElement("div");
+      idDiv.className = "flex flex-col";
+      const idLabel = document.createElement("span");
+      idLabel.className = "text-xs text-gray-500 uppercase tracking-wider mb-0.5 lg:hidden";
+      idLabel.textContent = "ID";
+      const idSpan = document.createElement("span");
+      idSpan.className = "text-sm text-gray-700";
+      idSpan.textContent = log.id;
+      idDiv.appendChild(idLabel);
+      idDiv.appendChild(idSpan);
+      
+      // Class column
+      const classDiv = document.createElement("div");
+      classDiv.className = "flex flex-col";
+      const classLabel = document.createElement("span");
+      classLabel.className = "text-xs text-gray-500 uppercase tracking-wider mb-0.5 lg:hidden";
+      classLabel.textContent = "Class";
+      const classSpan = document.createElement("span");
+      classSpan.className = "text-sm text-gray-700";
+      classSpan.textContent = log.class;
+      classDiv.appendChild(classLabel);
+      classDiv.appendChild(classSpan);
+      
+      // Time/Section column
+      const timeDiv = document.createElement("div");
+      timeDiv.className = "flex flex-col";
+      const timeLabel = document.createElement("span");
+      timeLabel.className = "text-xs text-gray-500 uppercase tracking-wider mb-0.5 lg:hidden";
+      timeLabel.textContent = "Time/Section";
+      const timeSpan = document.createElement("span");
+      timeSpan.className = "text-sm text-gray-700";
+      timeSpan.textContent = `${log.time} • ${log.section}`;
+      timeDiv.appendChild(timeLabel);
+      timeDiv.appendChild(timeSpan);
+      
+      leftDiv.appendChild(nameDiv);
+      leftDiv.appendChild(idDiv);
+      leftDiv.appendChild(classDiv);
+      leftDiv.appendChild(timeDiv);
+      
+      // Right section: Status and button
+      const rightDiv = document.createElement("div");
+      rightDiv.className = "flex items-center justify-between lg:justify-end gap-4 lg:gap-6";
+      
+      const statusSpan = document.createElement("span");
+      const isPresent = log.status === "Present";
+      const isLate = log.status === "Late";
+      const isAbsent = log.status === "Absent";
+      
+      let statusColor = "";
+      if (isPresent) statusColor = "text-green-700 bg-green-50";
+      else if (isLate) statusColor = "text-yellow-700 bg-yellow-50";
+      else if (isAbsent) statusColor = "text-red-700 bg-red-50";
+      
+      statusSpan.className = `text-xs font-semibold px-3 py-1.5 rounded-full ${statusColor} min-w-[80px] text-center`;
+      statusSpan.textContent = log.status;
+
+      const btn = document.createElement("button");
+      
+      // Set initial button styling based on current status
+      if (isPresent) {
+        btn.className = "border-none rounded-md px-5 py-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-all hover:opacity-85 bg-maroon text-white shadow-sm hover:shadow min-w-[110px]";
+        btn.textContent = "Mark Absent";
+      } else if (isLate) {
+        btn.className = "border-none rounded-md px-5 py-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-all hover:opacity-85 bg-maroon text-white shadow-sm hover:shadow min-w-[110px]";
+        btn.textContent = "Mark Present";
+      } else {
+        btn.className = "border-none rounded-md px-5 py-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-all hover:opacity-85 bg-green-700 text-white shadow-sm hover:shadow min-w-[110px]";
+        btn.textContent = "Mark Present";
+      }
+
+      btn.addEventListener("click", () => {
+        const currentlyPresent = statusSpan.textContent === "Present";
+        const currentlyLate = statusSpan.textContent === "Late";
+        const currentlyAbsent = statusSpan.textContent === "Absent";
+        
+        if (currentlyPresent) {
+          // Present -> Absent
+          statusSpan.textContent = "Absent";
+          statusSpan.className = "text-xs font-semibold px-3 py-1.5 rounded-full text-red-700 bg-red-50 min-w-[80px] text-center";
+          btn.textContent = "Mark Present";
+          btn.className = "border-none rounded-md px-5 py-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-all hover:opacity-85 bg-green-700 text-white shadow-sm hover:shadow min-w-[110px]";
+        } else if (currentlyLate) {
+          // Late -> Present
+          statusSpan.textContent = "Present";
+          statusSpan.className = "text-xs font-semibold px-3 py-1.5 rounded-full text-green-700 bg-green-50 min-w-[80px] text-center";
+          btn.textContent = "Mark Absent";
+          btn.className = "border-none rounded-md px-5 py-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-all hover:opacity-85 bg-maroon text-white shadow-sm hover:shadow min-w-[110px]";
+        } else if (currentlyAbsent) {
+          // Absent -> Present
+          statusSpan.textContent = "Present";
+          statusSpan.className = "text-xs font-semibold px-3 py-1.5 rounded-full text-green-700 bg-green-50 min-w-[80px] text-center";
+          btn.textContent = "Mark Absent";
+          btn.className = "border-none rounded-md px-5 py-2 text-xs font-semibold cursor-pointer whitespace-nowrap transition-all hover:opacity-85 bg-maroon text-white shadow-sm hover:shadow min-w-[110px]";
+        }
+      });
+
+      rightDiv.appendChild(statusSpan);
+      rightDiv.appendChild(btn);
+      
+      item.appendChild(leftDiv);
+      item.appendChild(rightDiv);
+      list.appendChild(item);
+    });
+  })();
+</script>
+{% endblock %}

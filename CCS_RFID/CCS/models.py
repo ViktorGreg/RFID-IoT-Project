@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
+from django.core.validators import RegexValidator  # ADD THIS for validation
 
 # Custom User Manager
 class CustomUserManager(BaseUserManager):
@@ -59,12 +60,37 @@ class User(AbstractBaseUser, PermissionsMixin):
         ('Networking', 'Networking'),
     )
     
+    # ============================================
+    # NEW: STUDENT ID FIELD (ADD THIS)
+    # ============================================
+    student_id = models.CharField(
+        max_length=10,
+        unique=True,
+        null=True,
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex=r'^\d{4}-\d{5}$',
+                message='Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779)'
+            )
+        ],
+        help_text="Format: YYYY-XXXXX (e.g., 2022-00779)"
+    )
+    
     # Authentication fields
-    email = models.EmailField(unique=True)
+    email = models.EmailField(
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[^\s@]+@wmsu\.edu\.ph$',
+                message='Only @wmsu.edu.ph email addresses are allowed'
+            )
+        ]
+    )
     password = models.CharField(max_length=128)
     user_type = models.CharField(max_length=10, choices=USER_TYPES)
 
-    # Add this new field
+    # RFID field
     rfid_tag = models.CharField(max_length=50, unique=True, null=True, blank=True)
     
     # Personal Information
@@ -84,9 +110,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     department = models.CharField(max_length=50, choices=DEPARTMENT_CHOICES, blank=True)
     course = models.CharField(max_length=50, choices=COURSE_CHOICES, blank=True)
     
-    # RFID Field - NEW
-    rfid_tag = models.CharField(max_length=50, unique=True, null=True, blank=True)
-    
     # Timestamps
     date_joined = models.DateTimeField(default=timezone.now)
     last_login = models.DateTimeField(null=True, blank=True)
@@ -102,7 +125,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     class Meta:
         db_table = 'users'
-        # Add these to fix the related name conflicts
         default_related_name = 'ccs_users'
     
     def __str__(self):

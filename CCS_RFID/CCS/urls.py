@@ -12,4 +12,5 @@ urlpatterns = [
 
     path('api/pending-rfid/create/<int:student_id>/', views.create_pending_rfid, name='create_pending_rfid'),
     path('api/pending-rfid/check/', views.check_pending_rfid, name='check_pending_rfid'),
+    path('student-registration/', views.studentRegistration, name='studentRegistration'),
 ]

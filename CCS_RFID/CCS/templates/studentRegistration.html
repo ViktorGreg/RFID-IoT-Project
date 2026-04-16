@@ -71,6 +71,7 @@
       <div class="mb-4">
         <label class="block text-[12px] font-semibold text-[#6b6b6b] uppercase tracking-[0.08em] mb-2">Email Address</label>
         <input type="email" id="modalEmail" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] outline-none transition-all" placeholder="Enter your email">
+        <p class="text-xs text-gray-500 mt-1">Only @wmsu.edu.ph email addresses are allowed</p>
       </div>
       
       <div class="mb-4">
@@ -206,6 +207,19 @@
 
       <form id="registrationForm" method="post" action="{% url 'studentRegistration' %}">
         {% csrf_token %}
+        
+        <!-- NEW: STUDENT ID FIELD -->
+        <div class="mb-8">
+          <label class="block text-[13px] font-semibold text-[#6b6b6b] uppercase tracking-[0.08em] mb-3">Student ID</label>
+          <div>
+            <input type="text" name="student_id" id="studentId" placeholder="YYYY-XXXXX (e.g., 2022-00779)" required 
+                   class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)]" 
+                   pattern="^\d{4}-\d{5}$"
+                   title="Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779)" />
+            <p class="text-xs text-gray-500 mt-1">Format: YYYY-XXXXX (e.g., 2022-00779, 2023-02387)</p>
+            <div id="studentIdError" class="text-red-600 text-xs mt-1 hidden"></div>
+          </div>
+        </div>
         
         <div class="mb-8">
           <label class="block text-[13px] font-semibold text-[#6b6b6b] uppercase tracking-[0.08em] mb-3">Your Name</label>
@@ -441,6 +455,7 @@
   const hiddenConfirmPassword = document.getElementById('hiddenConfirmPassword');
   
   // Form fields
+  const studentId = document.getElementById('studentId');
   const firstName = document.getElementById('firstName');
   const lastName = document.getElementById('lastName');
   const department = document.getElementById('department');
@@ -497,8 +512,155 @@
     if (field) field.addEventListener('change', updateDateOfBirth);
   });
   
-  // Validate form
+// ============================================
+// AUTOMATIC DASH FOR STUDENT ID (with delete support)
+// ============================================
+if (studentId) {
+  let lastValue = '';
+  
+  studentId.addEventListener('input', function(e) {
+    // Get current value
+    let value = this.value;
+    
+    // Check if this is a delete/backspace action (value got shorter)
+    const isDeleting = value.length < lastValue.length;
+    
+    // Store current value for next comparison
+    lastValue = value;
+    
+    // If deleting, don't auto-format - let the user delete naturally
+    if (isDeleting) {
+      return;
+    }
+    
+    // Remove existing dashes for processing
+    let rawValue = value.replace(/-/g, '');
+    
+    // Only process if we have digits
+    if (rawValue.length > 0) {
+      // Limit to 9 digits (4 + 5)
+      if (rawValue.length > 9) {
+        rawValue = rawValue.slice(0, 9);
+      }
+      
+      // Add dash after 4 digits if we have at least 4 digits
+      let formattedValue = rawValue;
+      if (rawValue.length >= 4) {
+        formattedValue = rawValue.slice(0, 4) + '-' + rawValue.slice(4);
+      }
+      
+      // Only update if value changed (to avoid cursor jumping)
+      if (this.value !== formattedValue) {
+        const cursorPosition = this.selectionStart;
+        this.value = formattedValue;
+        
+        // Adjust cursor position after formatting
+        if (rawValue.length >= 4 && cursorPosition === 4) {
+          this.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+        } else {
+          this.setSelectionRange(cursorPosition, cursorPosition);
+        }
+      }
+    }
+  });
+  
+  // Allow only numbers (0-9) and control keys (backspace, delete, tab, etc.)
+  studentId.addEventListener('keydown', function(e) {
+    const key = e.key;
+    const controlKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', 'Escape'];
+    
+    // Allow control keys
+    if (controlKeys.includes(key)) {
+      return; // Let these keys work normally
+    }
+    
+    // Allow numbers only
+    if (!/^[0-9]$/.test(key)) {
+      e.preventDefault();
+    }
+  });
+  
+  // Handle paste event
+  studentId.addEventListener('paste', function(e) {
+    e.preventDefault();
+    let pastedText = (e.clipboardData || window.clipboardData).getData('text');
+    let digits = pastedText.replace(/\D/g, '');
+    
+    if (digits.length > 0) {
+      if (digits.length > 9) {
+        digits = digits.slice(0, 9);
+      }
+      
+      let formatted = digits;
+      if (digits.length >= 4) {
+        formatted = digits.slice(0, 4) + '-' + digits.slice(4);
+      }
+      studentId.value = formatted;
+      lastValue = formatted;
+    }
+  });
+  
+  // Reset lastValue on focus
+  studentId.addEventListener('focus', function() {
+    lastValue = this.value;
+  });
+}
+
+  // NEW: Validate Student ID format
+  function validateStudentId() {
+    if (!studentId) return true;
+    
+    const studentIdRegex = /^\d{4}-\d{5}$/;
+    const studentIdError = document.getElementById('studentIdError');
+    
+    if (!studentId.value) {
+      if (studentIdError) {
+        studentIdError.textContent = 'Student ID is required';
+        studentIdError.classList.remove('hidden');
+      }
+      return false;
+    }
+    
+    if (!studentIdRegex.test(studentId.value)) {
+      if (studentIdError) {
+        studentIdError.textContent = 'Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779, 2023-02387)';
+        studentIdError.classList.remove('hidden');
+      }
+      studentId.focus();
+      return false;
+    }
+    
+    if (studentIdError) {
+      studentIdError.classList.add('hidden');
+    }
+    return true;
+  }
+  
+  // Add real-time validation for Student ID
+  if (studentId) {
+    studentId.addEventListener('input', function() {
+      const studentIdRegex = /^\d{4}-\d{5}$/;
+      const studentIdError = document.getElementById('studentIdError');
+      if (this.value && !studentIdRegex.test(this.value)) {
+        if (studentIdError) {
+          studentIdError.textContent = 'Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779)';
+          studentIdError.classList.remove('hidden');
+        }
+      } else if (studentIdError) {
+        studentIdError.classList.add('hidden');
+      }
+    });
+  }
+  
+  // NEW: Validate Email format for @wmsu.edu.ph
+  function validateEmail(email) {
+    if (!email) return false;
+    return email.toLowerCase().endsWith('@wmsu.edu.ph');
+  }
+  
+  // Validate form (updated to include Student ID)
   function validateForm() {
+    if (studentId && !validateStudentId()) return false;
     if (!firstName.value) { alert('First Name is required'); firstName.focus(); return false; }
     if (!lastName.value) { alert('Last Name is required'); lastName.focus(); return false; }
     if (!dobDay.value || !dobMonth.value || !dobYear.value) { alert('Please select date of birth'); return false; }
@@ -564,7 +726,7 @@
     });
   }
   
-  // Credential form submit
+  // Credential form submit (updated with email validation)
   if (credentialForm) {
     credentialForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -581,9 +743,9 @@
         return;
       }
       
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
-        modalErrorText.textContent = 'Invalid email format';
+      // NEW: Validate @wmsu.edu.ph email
+      if (!validateEmail(email)) {
+        modalErrorText.textContent = 'Only @wmsu.edu.ph email addresses are allowed';
         modalError.classList.remove('hidden');
         return;
       }

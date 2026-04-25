@@ -15,6 +15,9 @@ from .models import User, PendingRFID
 
 logger = logging.getLogger(__name__)
 
+# Simple in-memory storage for latest RFID (for claiming existing accounts)
+latest_rfid_tag = None
+
 # ============================================
 # Validation function for Student ID and Email
 # ============================================
@@ -24,14 +27,12 @@ def validate_student_registration_data(data):
     """
     errors = {}
     
-    # Validate Student ID format (YYYY-XXXXX)
     student_id = data.get('student_id')
     if student_id:
         student_id_pattern = r'^\d{4}-\d{5}$'
         if not re.match(student_id_pattern, student_id):
             errors['student_id'] = 'Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779)'
     
-    # Validate Email domain (@wmsu.edu.ph)
     email = data.get('email')
     if email:
         if not email.lower().endswith('@wmsu.edu.ph'):
@@ -46,6 +47,8 @@ def rfid_handler(request):
     API endpoint that receives RFID data from Arduino
     Handles both attendance (no student_id) and registration (with student_id)
     """
+    global latest_rfid_tag
+    
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -55,14 +58,14 @@ def rfid_handler(request):
             if not rfid_tag:
                 return JsonResponse({'error': 'No RFID tag provided'}, status=400)
             
+            # Store the latest RFID tag for claiming existing accounts
+            latest_rfid_tag = rfid_tag
+            
             print(f"📇 RFID received: {rfid_tag}, Student ID: {student_id}")
             
-            # CASE 1: This is for REGISTRATION (student_id is provided)
             if student_id:
                 try:
                     student = User.objects.get(id=student_id, user_type='student')
-                    
-                    # Check if RFID is already used by another student
                     existing = User.objects.filter(rfid_tag=rfid_tag).exclude(id=student_id).first()
                     if existing:
                         return JsonResponse({
@@ -70,7 +73,6 @@ def rfid_handler(request):
                             'message': 'RFID tag already registered to another student'
                         }, status=400)
                     
-                    # Assign RFID to student
                     student.rfid_tag = rfid_tag
                     student.save()
                     
@@ -85,9 +87,7 @@ def rfid_handler(request):
                 except User.DoesNotExist:
                     return JsonResponse({'error': 'Student not found'}, status=404)
             
-            # CASE 2: This is for ATTENDANCE (no student_id)
             else:
-                # Find student by RFID
                 student = User.objects.filter(
                     rfid_tag=rfid_tag, 
                     user_type='student',
@@ -95,12 +95,38 @@ def rfid_handler(request):
                 ).first()
                 
                 if student:
-                    print(f"✅ Attendance recorded for: {student.get_full_name()}")
-                    return JsonResponse({
-                        'status': 'success',
-                        'name': student.get_full_name(),
-                        'action': 'attendance_recorded'
-                    })
+                    # Check if there's an active session
+                    try:
+                        from classes.models import ClassSession
+                        active_session = ClassSession.objects.filter(status='active').first()
+                        if active_session:
+                            # Record attendance
+                            from classes.models import Attendance
+                            Attendance.objects.get_or_create(
+                                session=active_session,
+                                student=student,
+                                defaults={'status': 'present'}
+                            )
+                            print(f"✅ Attendance recorded for: {student.get_full_name()}")
+                            return JsonResponse({
+                                'status': 'success',
+                                'name': student.get_full_name(),
+                                'action': 'attendance_recorded'
+                            })
+                        else:
+                            print(f"✅ RFID recognized: {student.get_full_name()} (no active session)")
+                            return JsonResponse({
+                                'status': 'success',
+                                'name': student.get_full_name(),
+                                'action': 'rfid_recognized'
+                            })
+                    except ImportError:
+                        print(f"✅ RFID recognized: {student.get_full_name()}")
+                        return JsonResponse({
+                            'status': 'success',
+                            'name': student.get_full_name(),
+                            'action': 'rfid_recognized'
+                        })
                 else:
                     print(f"❌ No student found with RFID: {rfid_tag}")
                     return JsonResponse({
@@ -115,6 +141,42 @@ def rfid_handler(request):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@csrf_exempt
+def receive_rfid(request):
+    """Receive RFID tap from reader and store temporarily for claiming accounts"""
+    global latest_rfid_tag
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            latest_rfid_tag = data.get('rfid_tag')
+            return JsonResponse({'success': True})
+        except:
+            return JsonResponse({'error': 'Invalid data'}, status=400)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@csrf_exempt
+def get_latest_rfid(request):
+    """Get the latest RFID tag that was tapped"""
+    global latest_rfid_tag
+    return JsonResponse({'rfid_tag': latest_rfid_tag})
+
+
+@csrf_exempt
+def check_user_by_rfid(request):
+    """Check if a user exists with the given RFID tag"""
+    rfid_tag = request.GET.get('rfid_tag')
+    if rfid_tag:
+        user = User.objects.filter(rfid_tag=rfid_tag, user_type='student').first()
+        if user:
+            return JsonResponse({
+                'exists': True,
+                'name': user.get_full_name(),
+                'student_id': user.student_id
+            })
+    return JsonResponse({'exists': False})
 
 
 @login_required
@@ -207,6 +269,59 @@ def check_pending_rfid(request):
         return JsonResponse({'waiting': False})
 
 
+@csrf_exempt
+def claim_existing_account(request):
+    """Claim existing student account by tapping RFID card"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            rfid_tag = data.get('rfid_tag')
+            student_id = data.get('student_id')
+            email = data.get('email')
+            
+            if not rfid_tag:
+                return JsonResponse({'error': 'No RFID tag provided'}, status=400)
+            
+            # Find the existing user by Student ID or Email
+            user = None
+            if student_id:
+                user = User.objects.filter(student_id=student_id, user_type='student').first()
+            elif email:
+                user = User.objects.filter(email=email, user_type='student').first()
+            
+            if not user:
+                return JsonResponse({'error': 'Account not found'}, status=404)
+            
+            # Check if RFID is already used by another student
+            existing = User.objects.filter(rfid_tag=rfid_tag).exclude(id=user.id).first()
+            if existing:
+                return JsonResponse({'error': 'RFID tag already registered to another student'}, status=400)
+            
+            # Assign RFID to the existing account
+            user.rfid_tag = rfid_tag
+            
+            # If this account didn't have a Student ID yet, set it
+            if student_id and not user.student_id:
+                user.student_id = student_id
+            
+            # If this account didn't have an email yet, set it
+            if email and not user.email:
+                user.email = email
+            
+            user.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Account claimed successfully! You can now login with your RFID card.',
+                'user_id': user.id
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Invalid request'}, status=400)
+
+
 def adminLogin(request):
     if request.method == 'POST':
         email = request.POST.get('username')
@@ -268,7 +383,7 @@ def adminRegistration(request):
 
 
 # ============================================
-# FIXED: Single studentRegistration function
+# UPDATED: studentRegistration with modal popup for RFID claim
 # ============================================
 def studentRegistration(request):
     if request.method == 'POST':
@@ -278,7 +393,6 @@ def studentRegistration(request):
             print(f"{key}: {value}")
         print("=" * 50)
         
-        # Validate Student ID and Email FIRST
         validation_errors = validate_student_registration_data(request.POST)
         
         if validation_errors:
@@ -296,46 +410,67 @@ def studentRegistration(request):
                     messages.error(request, error)
                 return render(request, 'studentRegistration.html')
         
-        # Check for duplicate Student ID
         student_id = request.POST.get('student_id')
-        if student_id:
-            existing_student_id = User.objects.filter(student_id=student_id).exists()
-            if existing_student_id:
-                print(f"❌ Duplicate Student ID: {student_id}")
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False, 
-                        'error': 'Student ID already exists. Please use a different Student ID.'
-                    }, status=400)
-                else:
-                    messages.error(request, 'Student ID already exists. Please use a different Student ID.')
-                    return render(request, 'studentRegistration.html')
-        
-        # Check for duplicate Email
         email = request.POST.get('email')
-        if email:
-            existing_email = User.objects.filter(email=email).exists()
-            if existing_email:
-                print(f"❌ Duplicate Email: {email}")
-                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                    return JsonResponse({
-                        'success': False, 
-                        'error': 'Email already exists. Please use a different email address.'
-                    }, status=400)
-                else:
-                    messages.error(request, 'Email already exists. Please use a different email address.')
-                    return render(request, 'studentRegistration.html')
         
+        # Check if student already exists by Student ID
+        existing_user_by_student_id = User.objects.filter(student_id=student_id).first() if student_id else None
+        
+        # Check if email already exists
+        existing_user_by_email = User.objects.filter(email=email).first() if email else None
+        
+        # If student exists by Student ID, return existing user info for modal
+        if existing_user_by_student_id:
+            print(f"⚠️ Student ID {student_id} already exists.")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'exists': True,
+                    'type': 'student_id',
+                    'student_id': student_id,
+                    'user_id': existing_user_by_student_id.id,
+                    'email': existing_user_by_student_id.email,
+                    'message': f'Student ID {student_id} already exists. Tap your RFID card to claim this account.'
+                }, status=200)
+            else:
+                messages.warning(request, f'Student ID {student_id} already exists. Please contact administrator.')
+                return render(request, 'studentRegistration.html')
+        
+        # If email exists but no Student ID, return existing user info for modal
+        if existing_user_by_email and not existing_user_by_email.student_id:
+            print(f"⚠️ Email {email} exists but has no Student ID.")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'exists': True,
+                    'type': 'email',
+                    'email': email,
+                    'user_id': existing_user_by_email.id,
+                    'student_id': existing_user_by_email.student_id,
+                    'message': f'Email {email} already exists. Tap your RFID card to claim this account.'
+                }, status=200)
+            else:
+                messages.warning(request, f'Email {email} already exists. Please contact administrator.')
+                return render(request, 'studentRegistration.html')
+        
+        # If email exists and already has Student ID
+        if existing_user_by_email and existing_user_by_email.student_id:
+            print(f"⚠️ Email {email} already registered to {existing_user_by_email.student_id}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Email already registered to another student. Please use a different email.'
+                }, status=400)
+            else:
+                messages.error(request, 'Email already registered to another student.')
+                return render(request, 'studentRegistration.html')
+        
+        # NEW STUDENT - neither Student ID nor Email exists
+        print("✅ Creating new student account...")
         form = StudentRegistrationForm(request.POST)
         
         if form.is_valid():
-            print("Form is VALID")
-            print(f"Cleaned data student_id: {form.cleaned_data.get('student_id')}")
-            
             try:
                 user = form.save()
                 print(f"✅ User created with ID: {user.id}")
-                print(f"✅ Student ID saved: {user.student_id}")
                 
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({
@@ -349,8 +484,6 @@ def studentRegistration(request):
                     
             except Exception as e:
                 print(f"❌ Error saving user: {str(e)}")
-                import traceback
-                traceback.print_exc()
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'error': str(e)}, status=400)
                 else:
@@ -358,24 +491,17 @@ def studentRegistration(request):
                     return render(request, 'studentRegistration.html')
         else:
             print("❌ Form is invalid!")
-            print("Form errors:", form.errors)
-            
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 error_messages = []
                 for field, errors in form.errors.items():
                     error_messages.append(f"{field}: {', '.join(errors)}")
-                
-                return JsonResponse({
-                    'success': False, 
-                    'error': ' | '.join(error_messages)
-                }, status=400)
+                return JsonResponse({'success': False, 'error': ' | '.join(error_messages)}, status=400)
             else:
                 for field, errors in form.errors.items():
                     for error in errors:
                         messages.error(request, f"{field}: {error}")
                 return render(request, 'studentRegistration.html')
     
-    # GET request - just show the form
     return render(request, 'studentRegistration.html', {})
 
 

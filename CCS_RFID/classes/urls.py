@@ -11,4 +11,9 @@ urlpatterns = [
     path('active-class-session/<int:class_id>/', views.active_class_session, name='active_class_session'),
     path('record-attendance/', views.record_attendance, name='record_attendance'),
     path('api/get-active-session/', views.get_active_session, name='get_active_session'),
+
+
+    path('api/clear-pending-rfid/', views.clear_pending_rfid, name='clear_pending_rfid'),
+    path('api/cancel-pending-registration/', views.cancel_pending_registration, name='cancel_pending_registration'),
+    path('api/session-attendance/<int:session_id>/', views.get_session_attendance, name='session_attendance'),
 ]

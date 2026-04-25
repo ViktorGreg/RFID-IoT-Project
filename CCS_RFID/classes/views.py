@@ -14,6 +14,16 @@ import traceback
 import json
 import logging
 import re
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from datetime import datetime
+from django.http import HttpResponse
+from django.views.decorators.http import require_http_methods, require_GET, require_POST
+import io
 
 logger = logging.getLogger(__name__)
 
@@ -101,6 +111,9 @@ def rfid_handler(request):
                     
                     student.rfid_tag = rfid_tag
                     student.save()
+                    
+                    # CLEAR THE PENDING REGISTRATION AFTER SUCCESSFUL REGISTRATION
+                    PendingRFID.objects.filter(student=student).delete()
                     
                     print(f"✅ RFID registered for student: {student.get_full_name()}")
                     return JsonResponse({
@@ -234,6 +247,55 @@ def check_pending_rfid(request):
         })
     else:
         return JsonResponse({'waiting': False})
+
+@csrf_exempt
+def clear_pending_rfid(request):
+    """Clear pending RFID registration (called when registration is cancelled or completed)"""
+    if request.method == 'POST':
+        try:
+            # Delete all expired and pending registrations
+            PendingRFID.objects.filter(expires_at__lt=timezone.now()).delete()
+            
+            # If specific student_id is provided, delete that pending registration
+            data = json.loads(request.body) if request.body else {}
+            student_id = data.get('student_id')
+            
+            if student_id:
+                PendingRFID.objects.filter(student_id=student_id).delete()
+            else:
+                # Delete the oldest pending registration
+                pending = PendingRFID.objects.first()
+                if pending:
+                    pending.delete()
+            
+            return JsonResponse({'success': True, 'message': 'Pending registration cleared'})
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+def cancel_pending_registration(request):
+    """Cancel pending registration for a specific student"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            student_id = data.get('student_id')
+            
+            if student_id:
+                deleted_count, _ = PendingRFID.objects.filter(student_id=student_id).delete()
+                return JsonResponse({
+                    'success': True, 
+                    'message': f'Registration cancelled for student ID: {student_id}',
+                    'deleted': deleted_count
+                })
+            else:
+                return JsonResponse({'error': 'Student ID required'}, status=400)
+                
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
 # ============================================
@@ -495,7 +557,9 @@ def upload_masterlist(request):
             if not subject_start_row:
                 return JsonResponse({'error': 'Could not find subject data.'}, status=400)
             
-            classes_created = []
+            # FIRST PASS: Collect all classes and check for conflicts
+            classes_to_create = []
+            conflicts = []
             row_idx = subject_start_row
             consecutive_empty = 0
             
@@ -536,32 +600,82 @@ def upload_masterlist(request):
                     row_idx += 1
                     continue
                 
-                class_obj, created = Class.objects.get_or_create(
-                    subject_code=str(subject_code).strip(),
-                    section=str(section).strip() if section else '',
-                    semester=str(semester).strip() if semester else '',
-                    school_year=str(school_year).strip() if school_year else '',
-                    day=str(day).strip() if day else '',
-                    time_from=time_from,
-                    time_to=time_to,
-                    defaults={
-                        'subject_description': str(description).strip() if description else '',
-                        'college': str(college).strip() if college else '',
-                        'student_type': str(student_type).strip() if student_type else '',
-                        'room': str(room).strip() if room else '',
-                        'program': str(program).strip() if program else '',
-                        'class_size': int(class_size_str) if class_size_str and str(class_size_str).isdigit() else 0,
-                        'teacher': request.user,
-                    }
+                # Check for schedule conflicts with existing classes
+                day_str = str(day).strip() if day else ''
+                time_from_str = time_from.strftime('%H:%M:%S')
+                time_to_str = time_to.strftime('%H:%M:%S')
+                
+                # Find conflicting classes
+                conflicting_classes = Class.objects.filter(
+                    teacher=request.user,
+                    day=day_str,
+                    time_from__lt=time_to,
+                    time_to__gt=time_from
                 )
-                if created:
-                    classes_created.append(class_obj)
+                
+                for conflict in conflicting_classes:
+                    conflicts.append({
+                        'new_class': str(subject_code).strip(),
+                        'new_schedule': f"{day_str} {time_from.strftime('%I:%M %p')} - {time_to.strftime('%I:%M %p')}",
+                        'existing_class': f"{conflict.subject_code} - {conflict.subject_description}",
+                        'existing_schedule': f"{conflict.day} {conflict.time_from.strftime('%I:%M %p')} - {conflict.time_to.strftime('%I:%M %p')}"
+                    })
+                
+                classes_to_create.append({
+                    'subject_code': str(subject_code).strip(),
+                    'section': str(section).strip() if section else '',
+                    'semester': str(semester).strip() if semester else '',
+                    'school_year': str(school_year).strip() if school_year else '',
+                    'day': day_str,
+                    'time_from': time_from,
+                    'time_to': time_to,
+                    'subject_description': str(description).strip() if description else '',
+                    'college': str(college).strip() if college else '',
+                    'student_type': str(student_type).strip() if student_type else '',
+                    'room': str(room).strip() if room else '',
+                    'program': str(program).strip() if program else '',
+                    'class_size': int(class_size_str) if class_size_str and str(class_size_str).isdigit() else 0,
+                })
                 
                 row_idx += 1
                 
                 if row_idx > subject_start_row + 50:
                     break
             
+            # If there are conflicts, return them to show in modal
+            if conflicts:
+                return JsonResponse({
+                    'success': False,
+                    'has_conflicts': True,
+                    'conflicts': conflicts,
+                    'message': f'Found {len(conflicts)} schedule conflict(s). Please review before uploading.'
+                }, status=409)
+            
+            # SECOND PASS: No conflicts, proceed with creating classes
+            classes_created = []
+            for class_data in classes_to_create:
+                class_obj, created = Class.objects.get_or_create(
+                    subject_code=class_data['subject_code'],
+                    section=class_data['section'],
+                    semester=class_data['semester'],
+                    school_year=class_data['school_year'],
+                    day=class_data['day'],
+                    time_from=class_data['time_from'],
+                    time_to=class_data['time_to'],
+                    defaults={
+                        'subject_description': class_data['subject_description'],
+                        'college': class_data['college'],
+                        'student_type': class_data['student_type'],
+                        'room': class_data['room'],
+                        'program': class_data['program'],
+                        'class_size': class_data['class_size'],
+                        'teacher': request.user,
+                    }
+                )
+                if created:
+                    classes_created.append(class_obj)
+            
+            # Continue with student processing...
             student_start_row = None
             for i in range(1, 500):
                 col1 = get_cell_value(sheet.cell(row=i, column=1))
@@ -702,19 +816,139 @@ def start_class_session(request, class_id):
 
 @login_required
 def end_class_session(request, session_id):
-    """End an active class session"""
+    """End an active class session and mark absent students"""
     if request.method == 'POST':
         try:
             session = ClassSession.objects.get(id=session_id, teacher=request.user, status='active')
+            
+            # Get all enrollments for this class
+            enrollments = Enrollment.objects.filter(class_obj=session.class_obj).select_related('student')
+            
+            # Get all attendances for this session (current present students)
+            attendances = Attendance.objects.filter(session=session).select_related('student')
+            present_student_ids = [att.student.id for att in attendances]
+            
+            # Track students who were marked absent
+            warning_students = []
+            dropped_students = []
+            newly_absent_students = []
+            
+            # FIRST: Process each enrollment to mark absences
+            for enrollment in enrollments:
+                student = enrollment.student
+                
+                if student.id not in present_student_ids:
+                    # Student is absent - mark as absent
+                    newly_absent_students.append(student)
+                    old_absence_count = enrollment.absence_count
+                    enrollment.absence_count += 1
+                    absence_count = enrollment.absence_count
+                    
+                    # Check warning thresholds
+                    if absence_count == 3 and old_absence_count < 3:
+                        warning_students.append({
+                            'student_name': student.get_full_name(),
+                            'absence_count': absence_count,
+                            'warning_level': 'first_warning',
+                            'message': f'Warning: {absence_count}/5 absences. 2 remaining before being dropped.'
+                        })
+                    elif absence_count == 4 and old_absence_count < 4:
+                        warning_students.append({
+                            'student_name': student.get_full_name(),
+                            'absence_count': absence_count,
+                            'warning_level': 'final_warning',
+                            'message': f'FINAL WARNING: {absence_count}/5 absences. 1 more absence and you will be dropped!'
+                        })
+                    elif absence_count >= 5 and enrollment.status != 'dropped':
+                        enrollment.status = 'dropped'
+                        dropped_students.append({
+                            'student_name': student.get_full_name(),
+                            'absence_count': absence_count,
+                            'warning_level': 'dropped',
+                            'message': f'DROPPED: Student has been dropped from the class due to {absence_count}/5 absences.'
+                        })
+                    
+                    enrollment.save()
+            
+            # SECOND: Create absent attendance records for absent students
+            for student in newly_absent_students:
+                Attendance.objects.get_or_create(
+                    session=session,
+                    student=student,
+                    defaults={'status': 'absent'}
+                )
+            
+            # THIRD: Refresh attendances to include both present AND absent records
+            all_attendances = Attendance.objects.filter(session=session).select_related('student')
+            present_count = all_attendances.filter(status='present').count()
+            absent_count = all_attendances.filter(status='absent').count()
+            
+            # End the session
             session.status = 'ended'
             session.end_time = timezone.now()
             session.save()
             
-            return JsonResponse({'success': True, 'message': 'Class session ended successfully!'})
+            # Prepare complete attendance data for PDF
+            attendance_data = []
+            for enrollment in enrollments:
+                student = enrollment.student
+                attendance = all_attendances.filter(student=student).first()
+                
+                is_present = attendance and attendance.status == 'present'
+                
+                attendance_data.append({
+                    'student_id': student.student_id if hasattr(student, 'student_id') else 'N/A',
+                    'name': student.get_full_name(),
+                    'email': student.email,
+                    'course': getattr(student, 'course', 'N/A'),
+                    'status': 'Present' if is_present else 'Absent',
+                    'time_in': attendance.time_in.strftime('%I:%M %p') if attendance and attendance.time_in and is_present else '—'
+                })
+            
+            # Sort data: Present first, then by name
+            attendance_data.sort(key=lambda x: (x['status'] != 'Present', x['name']))
+            
+            # Check if PDF generation is requested
+            generate_pdf = request.POST.get('generate_pdf', False) or request.GET.get('pdf', False)
+            
+            if generate_pdf:
+                # Generate PDF with complete attendance data
+                pdf_content = generate_attendance_pdf(
+                    session.class_obj, 
+                    session, 
+                    attendance_data, 
+                    present_count, 
+                    absent_count
+                )
+                
+                # Create HTTP response with PDF
+                filename = f"Attendance_{session.class_obj.subject_code}_{session.start_time.strftime('%Y%m%d_%H%M')}.pdf"
+                response = HttpResponse(pdf_content, content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+            
+            # Return JSON for AJAX request (without PDF)
+            return JsonResponse({
+                'success': True,
+                'present_count': present_count,
+                'absent_count': absent_count,
+                'total_students': enrollments.count(),
+                'warnings': warning_students,
+                'dropped': dropped_students
+            })
+            
         except ClassSession.DoesNotExist:
-            return JsonResponse({'error': 'Active session not found'}, status=404)
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': 'Active session not found'}, status=404)
+            messages.error(request, 'Active session not found')
+            return redirect('classes')
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            import traceback
+            traceback.print_exc()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'error': str(e)}, status=500)
+            messages.error(request, f'Error ending session: {str(e)}')
+            return redirect('classes')
     
     return JsonResponse({'error': 'Invalid request method'}, status=400)
 
@@ -842,3 +1076,380 @@ def logout_view(request):
     logout(request)
     messages.success(request, 'You have been logged out successfully.')
     return redirect('adminLogin')
+
+def generate_attendance_pdf(class_obj, session, attendance_data, present_count, absent_count):
+    """Generate PDF report for attendance"""
+    
+    # Create buffer for PDF
+    buffer = io.BytesIO()
+    
+    # Create PDF document (landscape for better table display)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), 
+                           rightMargin=72, leftMargin=72,
+                           topMargin=72, bottomMargin=72)
+    
+    styles = getSampleStyleSheet()
+    elements = []
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#5A1219'),
+        alignment=TA_CENTER,
+        spaceAfter=30
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        textColor=colors.grey,
+        spaceAfter=20
+    )
+    
+    header_style = ParagraphStyle(
+        'CustomHeader',
+        parent=styles['Normal'],
+        fontSize=11,
+        textColor=colors.white,
+        alignment=TA_CENTER
+    )
+    
+    # Title
+    title = Paragraph(f"Attendance Report - {class_obj.subject_description}", title_style)
+    elements.append(title)
+    
+    # Class details
+    class_details = f"""
+    <b>Subject Code:</b> {class_obj.subject_code}<br/>
+    <b>Section:</b> {class_obj.section if class_obj.section else 'N/A'}<br/>
+    <b>Room:</b> {class_obj.room if class_obj.room else 'TBA'}<br/>
+    <b>Schedule:</b> {class_obj.day if class_obj.day else 'TBA'} | {class_obj.time_from.strftime('%I:%M %p') if class_obj.time_from else 'N/A'} - {class_obj.time_to.strftime('%I:%M %p') if class_obj.time_to else 'N/A'}<br/>
+    <b>School Year:</b> {class_obj.school_year if class_obj.school_year else 'N/A'}<br/>
+    <b>Semester:</b> {class_obj.semester if class_obj.semester else 'N/A'}
+    """
+    
+    details_paragraph = Paragraph(class_details, subtitle_style)
+    elements.append(details_paragraph)
+    elements.append(Spacer(1, 10))
+    
+    # Session info
+    session_info = f"""
+    <b>Session Date:</b> {session.start_time.strftime('%B %d, %Y')}<br/>
+    <b>Start Time:</b> {session.start_time.strftime('%I:%M %p')}<br/>
+    <b>End Time:</b> {session.end_time.strftime('%I:%M %p') if session.end_time else 'Ongoing'}<br/>
+    <b>Total Students:</b> {len(attendance_data)}<br/>
+    <b>Present:</b> {present_count} ({int(present_count/len(attendance_data)*100) if len(attendance_data) > 0 else 0}%)<br/>
+    <b>Absent:</b> {absent_count} ({int(absent_count/len(attendance_data)*100) if len(attendance_data) > 0 else 0}%)
+    """
+    
+    session_paragraph = Paragraph(session_info, subtitle_style)
+    elements.append(session_paragraph)
+    elements.append(Spacer(1, 20))
+    
+    # Prepare table data
+    table_data = []
+    
+    # Table header
+    headers = ['#', 'Student ID', 'Student Name', 'Course', 'Status', 'Time In']
+    table_data.append([Paragraph(h, header_style) for h in headers])
+    
+    # Table rows
+    for idx, student in enumerate(attendance_data, 1):
+        row = [
+            str(idx),
+            student.get('student_id', 'N/A'),
+            student.get('name', 'N/A'),
+            student.get('course', 'N/A'),
+            student.get('status', 'Absent'),
+            student.get('time_in', '—')
+        ]
+        table_data.append(row)
+    
+    # Create table
+    table = Table(table_data, repeatRows=1)
+    
+    # Table styling
+    table.setStyle(TableStyle([
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5A1219')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('TOPPADDING', (0, 0), (-1, 0), 12),
+        
+        # Body styling
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        
+        # Grid styling
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#D1D5DB')),
+        
+        # Alternating row colors
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FAFB')]),
+        
+        # Status column specific styling
+        ('TEXTCOLOR', (4, 1), (4, -1), colors.HexColor('#059669')),
+        ('FONTNAME', (4, 1), (4, -1), 'Helvetica-Bold'),
+    ]))
+    
+    # Color code status column based on value
+    for i, row in enumerate(table_data[1:], start=1):
+        status = row[4]
+        if 'present' in status.lower():
+            table.setStyle(TableStyle([
+                ('TEXTCOLOR', (4, i), (4, i), colors.HexColor('#059669')),
+                ('FONTNAME', (4, i), (4, i), 'Helvetica-Bold'),
+            ]))
+        elif 'absent' in status.lower():
+            table.setStyle(TableStyle([
+                ('TEXTCOLOR', (4, i), (4, i), colors.HexColor('#DC2626')),
+                ('FONTNAME', (4, i), (4, i), 'Helvetica-Bold'),
+            ]))
+    
+    elements.append(table)
+    
+    # Add footer with generation timestamp
+    elements.append(Spacer(1, 30))
+    footer_text = f"Report generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER
+    )
+    footer = Paragraph(footer_text, footer_style)
+    elements.append(footer)
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get PDF content
+    pdf_content = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_content
+
+def generate_attendance_pdf(class_obj, session, attendance_data, present_count, absent_count):
+    """Generate PDF report for attendance"""
+    
+    # Create buffer for PDF
+    buffer = io.BytesIO()
+    
+    # Create PDF document (landscape for better table display)
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(letter), 
+                           rightMargin=72, leftMargin=72,
+                           topMargin=72, bottomMargin=72)
+    
+    styles = getSampleStyleSheet()
+    elements = []
+    
+    # Custom styles
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#5A1219'),
+        alignment=TA_CENTER,
+        spaceAfter=30
+    )
+    
+    subtitle_style = ParagraphStyle(
+        'CustomSubtitle',
+        parent=styles['Normal'],
+        fontSize=12,
+        alignment=TA_CENTER,
+        textColor=colors.grey,
+        spaceAfter=20
+    )
+    
+    header_style = ParagraphStyle(
+        'CustomHeader',
+        parent=styles['Normal'],
+        fontSize=11,
+        textColor=colors.white,
+        alignment=TA_CENTER
+    )
+    
+    # Title
+    title = Paragraph(f"Attendance Report - {class_obj.subject_description}", title_style)
+    elements.append(title)
+    
+    # Class details
+    class_details = f"""
+    <b>Subject Code:</b> {class_obj.subject_code}<br/>
+    <b>Section:</b> {class_obj.section if class_obj.section else 'N/A'}<br/>
+    <b>Room:</b> {class_obj.room if class_obj.room else 'TBA'}<br/>
+    <b>Schedule:</b> {class_obj.day if class_obj.day else 'TBA'} | {class_obj.time_from.strftime('%I:%M %p') if class_obj.time_from else 'N/A'} - {class_obj.time_to.strftime('%I:%M %p') if class_obj.time_to else 'N/A'}<br/>
+    <b>School Year:</b> {class_obj.school_year if class_obj.school_year else 'N/A'}<br/>
+    <b>Semester:</b> {class_obj.semester if class_obj.semester else 'N/A'}
+    """
+    
+    details_paragraph = Paragraph(class_details, subtitle_style)
+    elements.append(details_paragraph)
+    elements.append(Spacer(1, 10))
+    
+    # Session info
+    session_info = f"""
+    <b>Session Date:</b> {session.start_time.strftime('%B %d, %Y')}<br/>
+    <b>Start Time:</b> {session.start_time.strftime('%I:%M %p')}<br/>
+    <b>End Time:</b> {session.end_time.strftime('%I:%M %p') if session.end_time else 'Ongoing'}<br/>
+    <b>Total Students:</b> {len(attendance_data)}<br/>
+    <b>Present:</b> {present_count} ({int(present_count/len(attendance_data)*100) if len(attendance_data) > 0 else 0}%)<br/>
+    <b>Absent:</b> {absent_count} ({int(absent_count/len(attendance_data)*100) if len(attendance_data) > 0 else 0}%)
+    """
+    
+    session_paragraph = Paragraph(session_info, subtitle_style)
+    elements.append(session_paragraph)
+    elements.append(Spacer(1, 20))
+    
+    # Prepare table data
+    table_data = []
+    
+    # Table header
+    headers = ['#', 'Student ID', 'Student Name', 'Course', 'Status', 'Time In']
+    table_data.append([Paragraph(h, header_style) for h in headers])
+    
+    # Table rows
+    for idx, student in enumerate(attendance_data, 1):
+        row = [
+            str(idx),
+            student.get('student_id', 'N/A'),
+            student.get('name', 'N/A'),
+            student.get('course', 'N/A'),
+            student.get('status', 'Absent'),
+            student.get('time_in', '—')
+        ]
+        table_data.append(row)
+    
+    # Create table
+    table = Table(table_data, repeatRows=1)
+    
+    # Table styling
+    table.setStyle(TableStyle([
+        # Header styling
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#5A1219')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('TOPPADDING', (0, 0), (-1, 0), 12),
+        
+        # Body styling
+        ('BACKGROUND', (0, 1), (-1, -1), colors.white),
+        ('TEXTCOLOR', (0, 1), (-1, -1), colors.black),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        
+        # Grid styling
+        ('GRID', (0, 0), (-1, -1), 1, colors.HexColor('#E5E7EB')),
+        ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#D1D5DB')),
+        
+        # Alternating row colors
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F9FAFB')]),
+        
+        # Status column specific styling
+        ('TEXTCOLOR', (4, 1), (4, -1), colors.HexColor('#059669')),
+        ('FONTNAME', (4, 1), (4, -1), 'Helvetica-Bold'),
+    ]))
+    
+    # Color code status column based on value
+    for i, row in enumerate(table_data[1:], start=1):
+        status = row[4]
+        if 'present' in status.lower():
+            table.setStyle(TableStyle([
+                ('TEXTCOLOR', (4, i), (4, i), colors.HexColor('#059669')),
+                ('FONTNAME', (4, i), (4, i), 'Helvetica-Bold'),
+            ]))
+        elif 'absent' in status.lower():
+            table.setStyle(TableStyle([
+                ('TEXTCOLOR', (4, i), (4, i), colors.HexColor('#DC2626')),
+                ('FONTNAME', (4, i), (4, i), 'Helvetica-Bold'),
+            ]))
+    
+    elements.append(table)
+    
+    # Add footer with generation timestamp
+    elements.append(Spacer(1, 30))
+    footer_text = f"Report generated on: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}"
+    footer_style = ParagraphStyle(
+        'Footer',
+        parent=styles['Normal'],
+        fontSize=8,
+        textColor=colors.grey,
+        alignment=TA_CENTER
+    )
+    footer = Paragraph(footer_text, footer_style)
+    elements.append(footer)
+    
+    # Build PDF
+    doc.build(elements)
+    
+    # Get PDF content
+    pdf_content = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_content
+
+from django.http import JsonResponse
+from django.views.decorators.http import require_http_methods, require_GET, require_POST
+import json
+
+# Add this function to your views.py
+@require_http_methods(["GET"])
+def get_session_attendance(request, session_id):
+    """API endpoint to get current attendance status for a session"""
+    try:
+        session = ClassSession.objects.get(id=session_id)
+        
+        # Get all attendances for this session
+        attendances = Attendance.objects.filter(session=session).select_related('student')
+        
+        # Get all students enrolled in this class
+        enrollments = Enrollment.objects.filter(class_obj=session.class_obj).select_related('student')
+        
+        # Build attendance data
+        attendance_data = []
+        for att in attendances:
+            attendance_data.append({
+                'student_id': str(att.student.id),
+                'student_name': att.student.get_full_name(),
+                'time_in': att.time_in.strftime('%I:%M %p') if att.time_in else 'N/A'
+            })
+        
+        # Return JSON response
+        return JsonResponse({
+            'success': True,
+            'present_count': attendances.count(),
+            'total_students': enrollments.count(),
+            'attendance_rate': round((attendances.count() / enrollments.count()) * 100) if enrollments.count() > 0 else 0,
+            'new_attendance': attendance_data,
+            'all_attendance_ids': [str(a.student.id) for a in attendances]  # Send all present student IDs
+        })
+        
+    except ClassSession.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Session not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

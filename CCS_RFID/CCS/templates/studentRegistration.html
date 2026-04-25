@@ -124,7 +124,6 @@
         </svg>
       </div>
       
-      <!-- Automatic RFID Status -->
       <div id="rfidStatus" class="text-center">
         <p class="text-[#6b6b6b] text-sm mb-2">Please tap your RFID card on the reader</p>
         <div class="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -141,6 +140,50 @@
       </button>
       <button type="button" id="skipRfidBtn" class="flex-1 py-3 bg-[#5A1219] text-white border-none rounded-lg font-dmsans text-[14px] font-semibold hover:bg-[#9e2430] transition-all">
         Skip for Now
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- EXISTING ACCOUNT MODAL - RFID TAP VERSION -->
+<div id="existingAccountModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.3)] w-full max-w-md p-8 animate-modalIn">
+    <div class="flex items-center gap-3 mb-6">
+      <div class="w-12 h-12 rounded-full bg-yellow-100 flex items-center justify-center">
+        <svg class="w-6 h-6 text-yellow-600 animate-pulse" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <h3 class="font-playfair text-xl font-semibold text-[#1a1a1a]">Account Already Exists</h3>
+    </div>
+    
+    <p class="text-[#6b6b6b] text-sm mb-4 text-center" id="modalMessageText">Student ID already exists. Tap your RFID card to claim this account.</p>
+    
+    <div class="text-center mb-6">
+      <div class="w-24 h-24 mx-auto mb-4 bg-[#7B1C24]/10 rounded-full flex items-center justify-center">
+        <svg class="w-12 h-12 text-[#7B1C24] animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 6v6l4 2"/>
+        </svg>
+      </div>
+      <p class="text-sm text-gray-600">Please tap your RFID card on the reader</p>
+      <p class="text-xs text-gray-500 mt-2">This will link your RFID card to your existing account</p>
+    </div>
+    
+    <div id="existingModalError" class="text-[#c0392b] text-sm mb-4 hidden flex items-center justify-center gap-2">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span id="existingModalErrorText"></span>
+    </div>
+    
+    <div class="flex gap-3">
+      <button type="button" id="cancelExistingBtn" class="flex-1 py-3 bg-white text-[#6b6b6b] border-2 border-[#e0dbd4] rounded-lg font-dmsans text-[14px] font-semibold hover:bg-[#f5f5f5] transition-all">
+        Cancel
+      </button>
+      <button type="button" id="manualLoginBtn" class="flex-1 py-3 bg-[#5A1219] text-white border-none rounded-lg font-dmsans text-[14px] font-semibold hover:bg-[#9e2430] transition-all">
+        Go to Login
       </button>
     </div>
   </div>
@@ -208,7 +251,7 @@
       <form id="registrationForm" method="post" action="{% url 'studentRegistration' %}">
         {% csrf_token %}
         
-        <!-- NEW: STUDENT ID FIELD -->
+        <!-- STUDENT ID FIELD -->
         <div class="mb-8">
           <label class="block text-[13px] font-semibold text-[#6b6b6b] uppercase tracking-[0.08em] mb-3">Student ID</label>
           <div>
@@ -236,106 +279,106 @@
           </div>
         </div>
 
-        <!-- Date of Birth Section - FIXED -->
-<div class="mb-8">
-  <label class="block text-[13px] font-semibold text-[#6b6b6b] uppercase tracking-[0.08em] mb-3">Date of Birth</label>
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-    <div>
-      <select name="dob_day" id="dobDay" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] appearance-none">
-        <option value="" disabled selected>Day</option>
-        <option value="01">01</option>
-        <option value="02">02</option>
-        <option value="03">03</option>
-        <option value="04">04</option>
-        <option value="05">05</option>
-        <option value="06">06</option>
-        <option value="07">07</option>
-        <option value="08">08</option>
-        <option value="09">09</option>
-        <option value="10">10</option>
-        <option value="11">11</option>
-        <option value="12">12</option>
-        <option value="13">13</option>
-        <option value="14">14</option>
-        <option value="15">15</option>
-        <option value="16">16</option>
-        <option value="17">17</option>
-        <option value="18">18</option>
-        <option value="19">19</option>
-        <option value="20">20</option>
-        <option value="21">21</option>
-        <option value="22">22</option>
-        <option value="23">23</option>
-        <option value="24">24</option>
-        <option value="25">25</option>
-        <option value="26">26</option>
-        <option value="27">27</option>
-        <option value="28">28</option>
-        <option value="29">29</option>
-        <option value="30">30</option>
-        <option value="31">31</option>
-      </select>
-    </div>
-    <div>
-      <select name="dob_month" id="dobMonth" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] appearance-none">
-        <option value="" disabled selected>Month</option>
-        <option value="01">January</option>
-        <option value="02">February</option>
-        <option value="03">March</option>
-        <option value="04">April</option>
-        <option value="05">May</option>
-        <option value="06">June</option>
-        <option value="07">July</option>
-        <option value="08">August</option>
-        <option value="09">September</option>
-        <option value="10">October</option>
-        <option value="11">November</option>
-        <option value="12">December</option>
-      </select>
-    </div>
-    <div>
-      <select name="dob_year" id="dobYear" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] appearance-none">
-        <option value="" disabled selected>Year</option>
-        <option value="2025">2025</option>
-        <option value="2024">2024</option>
-        <option value="2023">2023</option>
-        <option value="2022">2022</option>
-        <option value="2021">2021</option>
-        <option value="2020">2020</option>
-        <option value="2019">2019</option>
-        <option value="2018">2018</option>
-        <option value="2017">2017</option>
-        <option value="2016">2016</option>
-        <option value="2015">2015</option>
-        <option value="2014">2014</option>
-        <option value="2013">2013</option>
-        <option value="2012">2012</option>
-        <option value="2011">2011</option>
-        <option value="2010">2010</option>
-        <option value="2009">2009</option>
-        <option value="2008">2008</option>
-        <option value="2007">2007</option>
-        <option value="2006">2006</option>
-        <option value="2005">2005</option>
-        <option value="2004">2004</option>
-        <option value="2003">2003</option>
-        <option value="2002">2002</option>
-        <option value="2001">2001</option>
-        <option value="2000">2000</option>
-        <option value="1999">1999</option>
-        <option value="1998">1998</option>
-        <option value="1997">1997</option>
-        <option value="1996">1996</option>
-        <option value="1995">1995</option>
-        <option value="1994">1994</option>
-        <option value="1993">1993</option>
-        <option value="1992">1992</option>
-        <option value="1991">1991</option>
-        <option value="1990">1990</option>
-      </select>
-    </div>
-  </div>
-</div>
+        <!-- Date of Birth Section -->
+        <div class="mb-8">
+          <label class="block text-[13px] font-semibold text-[#6b6b6b] uppercase tracking-[0.08em] mb-3">Date of Birth</label>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <select name="dob_day" id="dobDay" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] appearance-none">
+                <option value="" disabled selected>Day</option>
+                <option value="01">01</option>
+                <option value="02">02</option>
+                <option value="03">03</option>
+                <option value="04">04</option>
+                <option value="05">05</option>
+                <option value="06">06</option>
+                <option value="07">07</option>
+                <option value="08">08</option>
+                <option value="09">09</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="21">21</option>
+                <option value="22">22</option>
+                <option value="23">23</option>
+                <option value="24">24</option>
+                <option value="25">25</option>
+                <option value="26">26</option>
+                <option value="27">27</option>
+                <option value="28">28</option>
+                <option value="29">29</option>
+                <option value="30">30</option>
+                <option value="31">31</option>
+              </select>
+            </div>
+            <div>
+              <select name="dob_month" id="dobMonth" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] appearance-none">
+                <option value="" disabled selected>Month</option>
+                <option value="01">January</option>
+                <option value="02">February</option>
+                <option value="03">March</option>
+                <option value="04">April</option>
+                <option value="05">May</option>
+                <option value="06">June</option>
+                <option value="07">July</option>
+                <option value="08">August</option>
+                <option value="09">September</option>
+                <option value="10">October</option>
+                <option value="11">November</option>
+                <option value="12">December</option>
+              </select>
+            </div>
+            <div>
+              <select name="dob_year" id="dobYear" required class="w-full py-3 px-4 border-[1.5px] border-[#e0dbd4] rounded-lg font-dmsans text-[14px] text-[#1a1a1a] bg-white outline-none transition-all focus:border-[#7B1C24] focus:shadow-[0_0_0_3px_rgba(123,28,36,0.1)] appearance-none">
+                <option value="" disabled selected>Year</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+                <option value="2023">2023</option>
+                <option value="2022">2022</option>
+                <option value="2021">2021</option>
+                <option value="2020">2020</option>
+                <option value="2019">2019</option>
+                <option value="2018">2018</option>
+                <option value="2017">2017</option>
+                <option value="2016">2016</option>
+                <option value="2015">2015</option>
+                <option value="2014">2014</option>
+                <option value="2013">2013</option>
+                <option value="2012">2012</option>
+                <option value="2011">2011</option>
+                <option value="2010">2010</option>
+                <option value="2009">2009</option>
+                <option value="2008">2008</option>
+                <option value="2007">2007</option>
+                <option value="2006">2006</option>
+                <option value="2005">2005</option>
+                <option value="2004">2004</option>
+                <option value="2003">2003</option>
+                <option value="2002">2002</option>
+                <option value="2001">2001</option>
+                <option value="2000">2000</option>
+                <option value="1999">1999</option>
+                <option value="1998">1998</option>
+                <option value="1997">1997</option>
+                <option value="1996">1996</option>
+                <option value="1995">1995</option>
+                <option value="1994">1994</option>
+                <option value="1993">1993</option>
+                <option value="1992">1992</option>
+                <option value="1991">1991</option>
+                <option value="1990">1990</option>
+              </select>
+            </div>
+          </div>
+        </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
           <div>
@@ -449,6 +492,11 @@
   const successMessage = document.getElementById('successMessage');
   const gotoLoginBtn = document.getElementById('gotoLoginBtn');
   
+  // Existing Account Modal elements
+  const existingModal = document.getElementById('existingAccountModal');
+  const cancelExistingBtn = document.getElementById('cancelExistingBtn');
+  const manualLoginBtn = document.getElementById('manualLoginBtn');
+  
   // Hidden fields
   const hiddenEmail = document.getElementById('hiddenEmail');
   const hiddenPassword = document.getElementById('hiddenPassword');
@@ -471,6 +519,8 @@
   
   let registeredStudentId = null;
   let pollingInterval = null;
+  let existingPendingData = null;
+  let existingPollingInterval = null;
   
   // Course mapping
   const courseMap = {
@@ -512,101 +562,70 @@
     if (field) field.addEventListener('change', updateDateOfBirth);
   });
   
-// ============================================
-// AUTOMATIC DASH FOR STUDENT ID (with delete support)
-// ============================================
-if (studentId) {
-  let lastValue = '';
-  
-  studentId.addEventListener('input', function(e) {
-    // Get current value
-    let value = this.value;
+  // Student ID auto-formatting
+  if (studentId) {
+    let lastValue = '';
     
-    // Check if this is a delete/backspace action (value got shorter)
-    const isDeleting = value.length < lastValue.length;
-    
-    // Store current value for next comparison
-    lastValue = value;
-    
-    // If deleting, don't auto-format - let the user delete naturally
-    if (isDeleting) {
-      return;
-    }
-    
-    // Remove existing dashes for processing
-    let rawValue = value.replace(/-/g, '');
-    
-    // Only process if we have digits
-    if (rawValue.length > 0) {
-      // Limit to 9 digits (4 + 5)
-      if (rawValue.length > 9) {
-        rawValue = rawValue.slice(0, 9);
-      }
+    studentId.addEventListener('input', function(e) {
+      let value = this.value;
+      const isDeleting = value.length < lastValue.length;
+      lastValue = value;
       
-      // Add dash after 4 digits if we have at least 4 digits
-      let formattedValue = rawValue;
-      if (rawValue.length >= 4) {
-        formattedValue = rawValue.slice(0, 4) + '-' + rawValue.slice(4);
-      }
+      if (isDeleting) return;
       
-      // Only update if value changed (to avoid cursor jumping)
-      if (this.value !== formattedValue) {
-        const cursorPosition = this.selectionStart;
-        this.value = formattedValue;
+      let rawValue = value.replace(/-/g, '');
+      
+      if (rawValue.length > 0) {
+        if (rawValue.length > 9) rawValue = rawValue.slice(0, 9);
         
-        // Adjust cursor position after formatting
-        if (rawValue.length >= 4 && cursorPosition === 4) {
-          this.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
-        } else {
-          this.setSelectionRange(cursorPosition, cursorPosition);
+        let formattedValue = rawValue;
+        if (rawValue.length >= 4) {
+          formattedValue = rawValue.slice(0, 4) + '-' + rawValue.slice(4);
+        }
+        
+        if (this.value !== formattedValue) {
+          const cursorPosition = this.selectionStart;
+          this.value = formattedValue;
+          
+          if (rawValue.length >= 4 && cursorPosition === 4) {
+            this.setSelectionRange(cursorPosition + 1, cursorPosition + 1);
+          } else {
+            this.setSelectionRange(cursorPosition, cursorPosition);
+          }
         }
       }
-    }
-  });
-  
-  // Allow only numbers (0-9) and control keys (backspace, delete, tab, etc.)
-  studentId.addEventListener('keydown', function(e) {
-    const key = e.key;
-    const controlKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', 'Escape'];
+    });
     
-    // Allow control keys
-    if (controlKeys.includes(key)) {
-      return; // Let these keys work normally
-    }
-    
-    // Allow numbers only
-    if (!/^[0-9]$/.test(key)) {
-      e.preventDefault();
-    }
-  });
-  
-  // Handle paste event
-  studentId.addEventListener('paste', function(e) {
-    e.preventDefault();
-    let pastedText = (e.clipboardData || window.clipboardData).getData('text');
-    let digits = pastedText.replace(/\D/g, '');
-    
-    if (digits.length > 0) {
-      if (digits.length > 9) {
-        digits = digits.slice(0, 9);
-      }
+    studentId.addEventListener('keydown', function(e) {
+      const key = e.key;
+      const controlKeys = ['Backspace', 'Delete', 'Tab', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Enter', 'Escape'];
       
-      let formatted = digits;
-      if (digits.length >= 4) {
-        formatted = digits.slice(0, 4) + '-' + digits.slice(4);
+      if (controlKeys.includes(key)) return;
+      if (!/^[0-9]$/.test(key)) e.preventDefault();
+    });
+    
+    studentId.addEventListener('paste', function(e) {
+      e.preventDefault();
+      let pastedText = (e.clipboardData || window.clipboardData).getData('text');
+      let digits = pastedText.replace(/\D/g, '');
+      
+      if (digits.length > 0) {
+        if (digits.length > 9) digits = digits.slice(0, 9);
+        
+        let formatted = digits;
+        if (digits.length >= 4) {
+          formatted = digits.slice(0, 4) + '-' + digits.slice(4);
+        }
+        studentId.value = formatted;
+        lastValue = formatted;
       }
-      studentId.value = formatted;
-      lastValue = formatted;
-    }
-  });
+    });
+    
+    studentId.addEventListener('focus', function() {
+      lastValue = this.value;
+    });
+  }
   
-  // Reset lastValue on focus
-  studentId.addEventListener('focus', function() {
-    lastValue = this.value;
-  });
-}
-
-  // NEW: Validate Student ID format
   function validateStudentId() {
     if (!studentId) return true;
     
@@ -623,7 +642,7 @@ if (studentId) {
     
     if (!studentIdRegex.test(studentId.value)) {
       if (studentIdError) {
-        studentIdError.textContent = 'Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779, 2023-02387)';
+        studentIdError.textContent = 'Student ID must be in format: YYYY-XXXXX (e.g., 2022-00779)';
         studentIdError.classList.remove('hidden');
       }
       studentId.focus();
@@ -636,7 +655,6 @@ if (studentId) {
     return true;
   }
   
-  // Add real-time validation for Student ID
   if (studentId) {
     studentId.addEventListener('input', function() {
       const studentIdRegex = /^\d{4}-\d{5}$/;
@@ -652,13 +670,11 @@ if (studentId) {
     });
   }
   
-  // NEW: Validate Email format for @wmsu.edu.ph
   function validateEmail(email) {
     if (!email) return false;
     return email.toLowerCase().endsWith('@wmsu.edu.ph');
   }
   
-  // Validate form (updated to include Student ID)
   function validateForm() {
     if (studentId && !validateStudentId()) return false;
     if (!firstName.value) { alert('First Name is required'); firstName.focus(); return false; }
@@ -673,7 +689,6 @@ if (studentId) {
     return true;
   }
   
-  // Helper function for CSRF token
   function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -687,6 +702,98 @@ if (studentId) {
       }
     }
     return cookieValue;
+  }
+  
+  function showExistingModal(data) {
+    existingPendingData = data;
+    const messageEl = document.getElementById('modalMessageText');
+    if (data.type === 'student_id') {
+      messageEl.innerHTML = `Student ID ${data.student_id} already exists.<br>Tap your RFID card to claim this account.`;
+    } else {
+      messageEl.innerHTML = `Email ${data.email} already exists.<br>Tap your RFID card to claim this account.`;
+    }
+    existingModal.classList.remove('hidden');
+    existingModal.classList.add('flex');
+    startExistingRfidPolling();
+  }
+  
+  function closeExistingModal() {
+    existingModal.classList.add('hidden');
+    existingModal.classList.remove('flex');
+    document.getElementById('existingModalError').classList.add('hidden');
+    if (existingPollingInterval) {
+      clearInterval(existingPollingInterval);
+      existingPollingInterval = null;
+    }
+    existingPendingData = null;
+  }
+  
+  function startExistingRfidPolling() {
+    if (existingPollingInterval) {
+      clearInterval(existingPollingInterval);
+    }
+    
+    existingPollingInterval = setInterval(() => {
+      fetch('/api/get-latest-rfid/')
+        .then(response => response.json())
+        .then(data => {
+          if (data.rfid_tag) {
+            claimExistingAccount(data.rfid_tag);
+          }
+        })
+        .catch(error => console.error('Error checking RFID:', error));
+    }, 1000);
+  }
+  
+  function claimExistingAccount(rfid_tag) {
+    if (!existingPendingData) return;
+    
+    const payload = {
+      rfid_tag: rfid_tag,
+      student_id: existingPendingData.student_id,
+      email: existingPendingData.email
+    };
+    
+    fetch('/api/claim-existing-account/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken')
+      },
+      body: JSON.stringify(payload)
+    })
+    .then(response => response.json())
+    .then(result => {
+      if (result.success) {
+        clearInterval(existingPollingInterval);
+        alert(result.message);
+        closeExistingModal();
+        window.location.href = '/studentLogin/';
+      } else {
+        const errorDiv = document.getElementById('existingModalError');
+        const errorText = document.getElementById('existingModalErrorText');
+        errorText.textContent = result.error;
+        errorDiv.classList.remove('hidden');
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      const errorDiv = document.getElementById('existingModalError');
+      const errorText = document.getElementById('existingModalErrorText');
+      errorText.textContent = 'An error occurred. Please try again.';
+      errorDiv.classList.remove('hidden');
+    });
+  }
+  
+  if (cancelExistingBtn) {
+    cancelExistingBtn.addEventListener('click', closeExistingModal);
+  }
+  
+  if (manualLoginBtn) {
+    manualLoginBtn.addEventListener('click', () => {
+      closeExistingModal();
+      window.location.href = '/studentLogin/';
+    });
   }
   
   // Next button click
@@ -708,7 +815,6 @@ if (studentId) {
     });
   }
   
-  // Cancel modal
   if (cancelModalBtn) {
     cancelModalBtn.addEventListener('click', () => {
       modalOverlay.classList.add('hidden');
@@ -716,7 +822,6 @@ if (studentId) {
     });
   }
   
-  // Click outside to close
   if (modalOverlay) {
     modalOverlay.addEventListener('click', (e) => {
       if (e.target === modalOverlay) {
@@ -726,7 +831,6 @@ if (studentId) {
     });
   }
   
-  // Credential form submit (updated with email validation)
   if (credentialForm) {
     credentialForm.addEventListener('submit', function(e) {
       e.preventDefault();
@@ -743,7 +847,6 @@ if (studentId) {
         return;
       }
       
-      // NEW: Validate @wmsu.edu.ph email
       if (!validateEmail(email)) {
         modalErrorText.textContent = 'Only @wmsu.edu.ph email addresses are allowed';
         modalError.classList.remove('hidden');
@@ -764,7 +867,6 @@ if (studentId) {
     });
   }
   
-  // Submit registration via AJAX
   function submitRegistrationForm() {
     const formData = new FormData(mainRegistrationForm);
     
@@ -775,28 +877,35 @@ if (studentId) {
     })
     .then(response => response.json())
     .then(data => {
-      if (data.success) {
+      if (data.exists) {
+        modalOverlay.classList.add('hidden');
+        modalOverlay.classList.remove('flex');
+        showExistingModal(data);
+      } else if (data.success) {
         modalOverlay.classList.add('hidden');
         modalOverlay.classList.remove('flex');
         
         registeredStudentId = data.student_id;
         
-        // Tell Django this student is waiting for RFID
         return fetch(`/api/pending-rfid/create/${registeredStudentId}/`, {
           method: 'POST',
           headers: { 'X-CSRFToken': getCookie('csrftoken') }
         });
       } else {
-        alert('Registration failed: ' + (data.error || JSON.stringify(data.errors)));
+        alert('Registration failed: ' + (data.error || 'Unknown error'));
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (response && response.ok) {
+        return response.json();
+      }
+      return null;
+    })
     .then(data => {
-      if (data.success) {
+      if (data && data.success) {
         rfidModal.classList.remove('hidden');
         rfidModal.classList.add('flex');
         
-        // Show waiting message
         rfidStatus.innerHTML = `
           <p class="text-[#6b6b6b] text-sm mb-2">Please tap your RFID card on the reader</p>
           <div class="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -815,7 +924,6 @@ if (studentId) {
     });
   }
   
-  // Poll for RFID registration
   function startRfidPolling() {
     pollingInterval = setInterval(() => {
       fetch(`/api/check-rfid/${registeredStudentId}/`)
@@ -836,7 +944,6 @@ if (studentId) {
     }, 2000);
   }
   
-  // Cancel RFID
   if (cancelRfidBtn) {
     cancelRfidBtn.addEventListener('click', () => {
       clearInterval(pollingInterval);
@@ -849,7 +956,6 @@ if (studentId) {
     });
   }
   
-  // Skip RFID
   if (skipRfidBtn) {
     skipRfidBtn.addEventListener('click', () => {
       clearInterval(pollingInterval);
@@ -862,7 +968,6 @@ if (studentId) {
     });
   }
   
-  // Go to login
   if (gotoLoginBtn) {
     gotoLoginBtn.addEventListener('click', () => {
       window.location.href = "{% url 'studentLogin' %}";
@@ -904,7 +1009,7 @@ if (studentId) {
     outline: none;
   }
   
-  #modalOverlay, #rfidModal, #successModal {
+  #modalOverlay, #rfidModal, #successModal, #existingAccountModal {
     backdrop-filter: blur(4px);
   }
 </style>

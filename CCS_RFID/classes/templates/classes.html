@@ -219,6 +219,42 @@
   </div>
 </div>
 
+<!-- Conflict Warning Modal -->
+<div id="conflictModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between sticky top-0 bg-white">
+      <div class="flex items-center gap-2">
+        <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <h3 class="text-lg font-semibold text-gray-800">Schedule Conflicts Detected</h3>
+      </div>
+      <button id="closeConflictModalBtn" class="text-gray-400 hover:text-gray-600">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+    <div class="px-6 py-4">
+      <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-4">
+        <p class="text-sm text-red-800 font-semibold mb-2">The following schedule conflicts were found:</p>
+        <p class="text-xs text-red-700">Please resolve these conflicts before uploading the masterlist.</p>
+      </div>
+      
+      <div class="space-y-3 max-h-96 overflow-y-auto" id="conflictList">
+        <!-- Conflicts will be listed here -->
+      </div>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+      <button id="closeConflictBtn" class="px-4 py-2 bg-maroon text-white text-sm font-semibold rounded-lg hover:bg-maroon-light transition-colors">
+        Close
+      </button>
+    </div>
+  </div>
+</div>
+
 <script>
   // Upload Modal functionality
   const uploadBtn = document.getElementById('uploadMasterlistBtn');
@@ -248,6 +284,62 @@
     fileInput.click();
   });
 
+  // Escape HTML helper
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  // Conflict Modal functions
+  function showConflictModal(conflicts) {
+    const conflictModal = document.getElementById('conflictModal');
+    const conflictList = document.getElementById('conflictList');
+    
+    conflictList.innerHTML = '';
+    
+    conflicts.forEach((conflict, index) => {
+      const conflictItem = document.createElement('div');
+      conflictItem.className = 'border border-red-200 rounded-lg p-4 bg-red-50';
+      conflictItem.innerHTML = `
+        <div class="flex items-start gap-3">
+          <div class="flex-shrink-0">
+            <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div class="flex-1">
+            <p class="text-sm font-semibold text-red-800">Conflict #${index + 1}</p>
+            <div class="mt-2 space-y-1">
+              <p class="text-xs text-red-700">
+                <span class="font-medium">New Class:</span> ${escapeHtml(conflict.new_class)} 
+                <span class="text-gray-500">${escapeHtml(conflict.new_schedule)}</span>
+              </p>
+              <p class="text-xs text-red-700">
+                <span class="font-medium">Conflicts with:</span> ${escapeHtml(conflict.existing_class)}
+                <span class="text-gray-500">${escapeHtml(conflict.existing_schedule)}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+      conflictList.appendChild(conflictItem);
+    });
+    
+    conflictModal.classList.remove('hidden');
+    conflictModal.classList.add('flex');
+  }
+
+  function closeConflictModal() {
+    const conflictModal = document.getElementById('conflictModal');
+    conflictModal.classList.add('hidden');
+    conflictModal.classList.remove('flex');
+  }
+
   uploadSubmitBtn.addEventListener('click', () => {
     if (fileInput.files.length === 0) {
       alert('Please select a file first.');
@@ -273,17 +365,24 @@
       if (status === 200 && body.success) {
         alert(body.message);
         location.reload();
+      } else if (body.has_conflicts) {
+        // Show conflict modal
+        showConflictModal(body.conflicts);
+        uploadSubmitBtn.disabled = false;
+        uploadSubmitBtn.innerText = 'Upload';
       } else {
         alert('Error: ' + (body.error || 'Unknown error'));
+        uploadSubmitBtn.disabled = false;
+        uploadSubmitBtn.innerText = 'Upload';
       }
     })
     .catch(error => {
       console.error('Fetch error:', error);
       alert('Network error: ' + error);
-    })
-    .finally(() => {
       uploadSubmitBtn.disabled = false;
       uploadSubmitBtn.innerText = 'Upload';
+    })
+    .finally(() => {
       closeModal();
     });
   });
@@ -348,6 +447,15 @@
   document.getElementById('deleteModal').addEventListener('click', (e) => {
     if (e.target === document.getElementById('deleteModal')) {
       closeDeleteModal();
+    }
+  });
+
+  // Conflict modal event listeners
+  document.getElementById('closeConflictModalBtn')?.addEventListener('click', closeConflictModal);
+  document.getElementById('closeConflictBtn')?.addEventListener('click', closeConflictModal);
+  document.getElementById('conflictModal')?.addEventListener('click', (e) => {
+    if (e.target === document.getElementById('conflictModal')) {
+      closeConflictModal();
     }
   });
 </script>

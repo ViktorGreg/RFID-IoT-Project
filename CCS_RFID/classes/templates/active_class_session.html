@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load tz %}
 
 {% block title %}Active Class Session - {{ class.subject_code }}{% endblock %}
 
@@ -187,7 +188,7 @@
           <h1 class="text-white text-2xl md:text-3xl font-bold">LIVE: {{ class.subject_description|default:"Class Session" }}</h1>
         </div>
         <p class="text-white/70 text-sm font-medium mb-1">{{ class.subject_code|default:"Subject Code" }} | Room {{ class.room|default:"TBA" }}</p>
-        <p class="text-white/50 text-xs">Session started: {{ session.start_time|date:"F j, Y" }} at {{ session.start_time|time:"g:i A" }}</p>
+        <p class="text-white/50 text-xs">Session started: {{ session.start_time|date:"F j, Y" }} at {{ session.start_time|localtime|date:"g:i A" }}</p>
       </div>
       <button id="endClassBtn" class="inline-flex items-center gap-2 px-6 py-3 bg-red-600 rounded-lg text-white text-sm font-semibold hover:bg-red-700 shadow-md">
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -256,7 +257,15 @@
               <span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">⏳ Not yet tapped</span>
             {% endif %}
           </td>
-          <td class="px-6 py-3 time-cell text-sm text-gray-600">{{ student.time_in|default:"—" }}</td>
+          <td class="px-6 py-3 time-cell text-sm text-gray-600">
+            {% if student.time_in and student.time_in != '—' %}
+              {% localtime on %}
+                {{ student.time_in|date:"g:i A" }}
+              {% endlocaltime %}
+            {% else %}
+              —
+            {% endif %}
+          </td>
         </tr>
         {% endfor %}
       </tbody>
@@ -284,7 +293,7 @@
         <tr><td><strong>Subject Description:</strong></td><td id="pdfSubjectDesc"></td></tr>
         <tr><td><strong>Room:</strong></td><td id="pdfRoom"></td></tr>
         <tr><td><strong>Instructor:</strong></td><td id="pdfInstructor"></td></tr>
-      </table>
+       </table>
     </div>
     
     <div style="margin-bottom: 20px;">

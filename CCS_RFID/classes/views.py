@@ -21,6 +21,7 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -1012,17 +1013,21 @@ def record_attendance(request):
             if existing_attendance:
                 return JsonResponse({'error': f'{student.get_full_name()} already recorded attendance.'}, status=400)
             
+            # Create attendance - time will be set automatically with local time
             attendance = Attendance.objects.create(
                 session=session,
                 student=student,
                 status='present'
             )
             
+            # Format time for response
+            time_formatted = attendance.time_in.strftime('%I:%M %p')
+            
             return JsonResponse({
                 'success': True,
                 'message': f'✅ Attendance recorded for {student.get_full_name()}',
                 'student_name': student.get_full_name(),
-                'time_in': attendance.time_in.strftime('%I:%M %p')
+                'time_in': time_formatted
             })
             
         except ClassSession.DoesNotExist:

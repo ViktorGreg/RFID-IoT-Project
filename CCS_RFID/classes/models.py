@@ -13,14 +13,14 @@ class Class(models.Model):
     student_type = models.CharField(max_length=50, blank=True, null=True)
     
     # Schedule
-    day = models.CharField(max_length=50)  # e.g., "M (Lec 2.00) (Lab 0.00)" or "Monday"
+    day = models.CharField(max_length=50)
     time_from = models.TimeField()
     time_to = models.TimeField()
     room = models.CharField(max_length=50)
     
     # Class Info
-    program = models.CharField(max_length=50)  # e.g., BSIT
-    section = models.CharField(max_length=100)  # e.g., BSIT-3A Main
+    program = models.CharField(max_length=50)
+    section = models.CharField(max_length=100)
     class_size = models.IntegerField(default=0)
     
     # Teacher who uploaded/manages this class
@@ -105,7 +105,7 @@ class ClassSession(models.Model):
     
     class_obj = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='sessions')
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'admin'})
-    start_time = models.DateTimeField(auto_now_add=True)
+    start_time = models.DateTimeField(auto_now_add=True)  # This will now use local time
     end_time = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     
@@ -126,11 +126,20 @@ class Attendance(models.Model):
     
     session = models.ForeignKey(ClassSession, on_delete=models.CASCADE, related_name='attendances')
     student = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'student'})
-    time_in = models.DateTimeField(auto_now_add=True)
+    time_in = models.DateTimeField(auto_now_add=True)  # This will now use local time
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
     
     class Meta:
-        unique_together = ['session', 'student']  # Prevent duplicate attendance per session
+        unique_together = ['session', 'student']
+        ordering = ['-time_in']
     
     def __str__(self):
-        return f"{self.student.get_full_name()} - {self.session.class_obj.subject_code}"
+        return f"{self.student.get_full_name()} - {self.session.class_obj.subject_code} - {self.time_in.strftime('%I:%M %p')}"
+    
+    @property
+    def time_formatted(self):
+        return self.time_in.strftime('%I:%M %p')
+    
+    @property
+    def date_formatted(self):
+        return self.time_in.strftime('%B %d, %Y')

@@ -5,7 +5,7 @@ import re
 import threading
 
 # CONFIGURATION
-ARDUINO_PORT = 'COM21'
+ARDUINO_PORT = 'COM4'
 BAUD_RATE = 9600
 DJANGO_URL = 'http://127.0.0.1:8000'
 PENDING_TIMEOUT = 300  # 5 minutes timeout for pending registration

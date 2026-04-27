@@ -3,6 +3,30 @@
 {% block title %}Class Details - Attendance Tracker System{% endblock %}
 
 {% block content %}
+<!-- Success/Error Message Modal -->
+<div id="messageModal" class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center">
+  <div class="bg-white rounded-xl shadow-xl w-full max-w-md mx-4 transform transition-all duration-300">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <div class="flex items-center gap-3">
+        <div id="messageIcon" class="w-10 h-10 rounded-full flex items-center justify-center">
+          <svg id="messageIconSvg" class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M9 11l3 3L22 4"/>
+          </svg>
+        </div>
+        <h3 id="messageTitle" class="text-lg font-semibold text-gray-800">Success!</h3>
+      </div>
+    </div>
+    <div class="px-6 py-4">
+      <p id="messageText" class="text-gray-700">Operation completed successfully.</p>
+    </div>
+    <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+      <button id="closeMessageBtn" class="px-4 py-2 bg-maroon text-white text-sm font-semibold rounded-lg hover:bg-maroon-dark transition-colors">
+        OK
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Welcome Banner -->
 <div class="relative rounded-2xl overflow-hidden mb-5 bg-maroon-dark banner-noise shadow-lg">
   <div class="absolute -right-10 -top-10 w-52 h-52 rounded-full bg-white/5"></div>
@@ -273,6 +297,50 @@
 </div>
 
 <script>
+  // Message Modal Function
+  function showMessageModal(type, title, message) {
+    const modal = document.getElementById('messageModal');
+    const iconDiv = document.getElementById('messageIcon');
+    const iconSvg = document.getElementById('messageIconSvg');
+    const titleElem = document.getElementById('messageTitle');
+    const textElem = document.getElementById('messageText');
+    
+    if (type === 'success') {
+      iconDiv.className = 'w-10 h-10 rounded-full bg-green-100 flex items-center justify-center';
+      iconSvg.innerHTML = '<path d="M9 11l3 3L22 4"/>';
+      iconSvg.setAttribute('stroke', '#059669');
+      titleElem.textContent = title || 'Success!';
+      titleElem.className = 'text-lg font-semibold text-green-700';
+    } else if (type === 'error') {
+      iconDiv.className = 'w-10 h-10 rounded-full bg-red-100 flex items-center justify-center';
+      iconSvg.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+      iconSvg.setAttribute('stroke', '#dc2626');
+      titleElem.textContent = title || 'Error!';
+      titleElem.className = 'text-lg font-semibold text-red-700';
+    } else {
+      iconDiv.className = 'w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center';
+      iconSvg.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+      iconSvg.setAttribute('stroke', '#3b82f6');
+      titleElem.textContent = title || 'Information';
+      titleElem.className = 'text-lg font-semibold text-blue-700';
+    }
+    
+    textElem.textContent = message;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  
+  function closeMessageModal() {
+    const modal = document.getElementById('messageModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  
+  document.getElementById('closeMessageBtn').addEventListener('click', closeMessageModal);
+  document.getElementById('messageModal').addEventListener('click', (e) => {
+    if (e.target === document.getElementById('messageModal')) closeMessageModal();
+  });
+  
   // Search functionality
   const searchInput = document.getElementById('searchInput');
   const studentRows = document.querySelectorAll('.student-row');
@@ -491,15 +559,17 @@
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          alert(data.message);
-          window.location.href = `/active-class-session/${classId}/`;
+          showMessageModal('success', 'Class Started!', data.message);
+          setTimeout(() => {
+            window.location.href = `/active-class-session/${classId}/`;
+          }, 1500);
         } else {
-          alert('Error: ' + data.error);
+          showMessageModal('error', 'Cannot Start Class', data.error);
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        alert('Failed to start class session. Check console for details.');
+        showMessageModal('error', 'Error', 'Failed to start class session. Please check your connection.');
       });
       closeStartClassModalFunc();
     });
@@ -519,6 +589,7 @@
     if (e.key === 'Escape') {
       if (modal && !modal.classList.contains('hidden')) closeModal();
       if (startClassModal && !startClassModal.classList.contains('hidden')) closeStartClassModalFunc();
+      closeMessageModal();
     }
   });
 </script>

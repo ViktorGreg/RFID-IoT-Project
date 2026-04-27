@@ -47,4 +47,7 @@ urlpatterns = [
     path('classes/<int:class_id>/pdf-reports/', views.view_pdf_reports, name='pdf_reports'),
     path('pdf-report/<int:report_id>/download/', views.download_pdf_report, name='download_pdf_report'),
     path('pdf-report/<int:report_id>/delete/', views.delete_pdf_report, name='delete_pdf_report'),
+    path('api/attendance-stream/<int:session_id>/', views.attendance_stream, name='attendance_stream'),
+    path('api/attendance-simple/<int:session_id>/', views.get_attendance_simple, name='attendance_simple'),
+    path('pdf-report/delete-multiple/', views.delete_multiple_pdf_reports, name='delete_multiple_pdf_reports'),
 ]

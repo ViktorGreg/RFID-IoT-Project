@@ -7,7 +7,8 @@ from django.http import JsonResponse, HttpResponse, FileResponse, Http404
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods, require_GET, require_POST
 from django.utils import timezone
-from datetime import datetime, time, timedelta
+from datetime import datetime, timedelta
+from datetime import time as dt_time
 from .models import Class, Enrollment, ClassSession, Attendance, ClassPDFReport
 from CCS.models import User, PendingRFID
 from CCS.forms import AdminLoginForm, StudentLoginForm, AdminRegistrationForm, StudentRegistrationForm
@@ -21,7 +22,10 @@ from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_CENTER
+from django.http import StreamingHttpResponse
+import time
 import pytz
+
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +62,8 @@ def get_cell_value(cell):
 
 def parse_excel_time(value):
     """Convert Excel time (datetime, float, or string) to time object"""
+    from datetime import time
+    
     if value is None:
         return None
     if isinstance(value, time):
@@ -72,11 +78,19 @@ def parse_excel_time(value):
         return time(hours, minutes, seconds)
     if isinstance(value, str):
         value = value.strip()
-        for fmt in ['%I:%M%p', '%I:%M %p', '%H:%M', '%I:%M%p']:
-            try:
-                return datetime.strptime(value, fmt).time()
-            except:
-                continue
+        # Handle times like "3:00AM", "12:00PM"
+        import re
+        match = re.match(r'(\d{1,2}):(\d{2})\s*(AM|PM)?', value, re.IGNORECASE)
+        if match:
+            hour = int(match.group(1))
+            minute = int(match.group(2))
+            ampm = match.group(3)
+            if ampm:
+                if ampm.upper() == 'PM' and hour != 12:
+                    hour += 12
+                elif ampm.upper() == 'AM' and hour == 12:
+                    hour = 0
+            return time(hour, minute)
     return None
 
 
@@ -781,16 +795,39 @@ def delete_class(request, class_id):
 # ============================================
 @login_required
 def start_class_session(request, class_id):
-    """Start a new class session"""
+    """Start a new class session with time restriction"""
     if request.method == 'POST':
         try:
             class_obj = Class.objects.get(id=class_id, teacher=request.user)
-            print(f"[DEBUG] Starting class session for: {class_obj.subject_code}")
             
+            # Get current time
+            now = timezone.now()
+            current_time = now.time()
+            
+            # Get class scheduled time
+            class_start_time = class_obj.time_from
+            class_end_time = class_obj.time_to
+            
+            # Check if current time is within class schedule
+            # Handle cases where class spans midnight
+            if class_start_time <= class_end_time:
+                # Normal schedule (e.g., 09:00 to 12:00)
+                is_within_schedule = class_start_time <= current_time <= class_end_time
+            else:
+                # Overnight schedule (e.g., 22:00 to 02:00)
+                is_within_schedule = current_time >= class_start_time or current_time <= class_end_time
+            
+            if not is_within_schedule:
+                return JsonResponse({
+                    'error': f'Cannot start class outside scheduled time. Class schedule is from {class_start_time.strftime("%I:%M %p")} to {class_end_time.strftime("%I:%M %p")}.'
+                }, status=400)
+            
+            # Check for existing active session
             active_session = ClassSession.objects.filter(class_obj=class_obj, status='active').first()
             if active_session:
                 return JsonResponse({'error': 'A class session is already active for this class.'}, status=400)
             
+            # Create new session
             session = ClassSession.objects.create(
                 class_obj=class_obj,
                 teacher=request.user,
@@ -798,12 +835,17 @@ def start_class_session(request, class_id):
             )
             
             print(f"[DEBUG] Session created with ID: {session.id}")
+            print(f"[DEBUG] Class scheduled time: {class_start_time.strftime('%I:%M %p')} - {class_end_time.strftime('%I:%M %p')}")
+            print(f"[DEBUG] Session started at: {session.start_time.strftime('%I:%M %p')}")
             
             return JsonResponse({
                 'success': True, 
                 'message': 'Class session started successfully!',
-                'session_id': session.id
+                'session_id': session.id,
+                'start_time': session.start_time.strftime('%I:%M %p'),
+                'grace_period_end': (session.start_time + timedelta(minutes=15)).strftime('%I:%M %p')
             })
+            
         except Class.DoesNotExist:
             return JsonResponse({'error': 'Class not found'}, status=404)
         except Exception as e:
@@ -1039,58 +1081,91 @@ def active_class_session(request, class_id):
 
 @csrf_exempt
 def record_attendance(request):
-    """Record student attendance via RFID scanner - NO LOGIN REQUIRED"""
+    """Record student attendance via RFID scanner"""
     if request.method == 'POST':
         try:
-            data = json.loads(request.body)
-            rfid_tag = data.get('rfid_tag')
-            session_id = data.get('session_id')
+            # Read the raw body
+            body = request.body.decode('utf-8')
+            print(f"RAW BODY: {body}")
             
-            if not rfid_tag or not session_id:
-                return JsonResponse({'error': 'Missing RFID tag or session ID'}, status=400)
+            # Try to parse JSON
+            try:
+                data = json.loads(body)
+            except:
+                # If not JSON, try POST data
+                data = request.POST.dict()
             
-            session = ClassSession.objects.get(id=session_id, status='active')
+            print(f"PARSED DATA: {data}")
             
+            # Get fields (handle both 'rfid_tag' and 'rfid')
+            rfid_tag = data.get('rfid_tag') or data.get('rfid')
+            session_id = data.get('session_id') or data.get('session')
+            
+            print(f"RFID: {rfid_tag}, SESSION: {session_id}")
+            
+            if not rfid_tag:
+                return JsonResponse({'error': 'No RFID tag provided'}, status=400)
+            
+            if not session_id:
+                return JsonResponse({'error': 'No session ID provided'}, status=400)
+            
+            # Get the session
+            try:
+                session = ClassSession.objects.get(id=session_id, status='active')
+            except ClassSession.DoesNotExist:
+                return JsonResponse({'error': 'No active session found'}, status=404)
+            
+            # Find student
             student = User.objects.filter(rfid_tag=rfid_tag, user_type='student').first()
             if not student:
-                return JsonResponse({'error': 'Student not found. Please register your RFID first.'}, status=404)
+                return JsonResponse({'error': 'Student not found. Please register RFID first.'}, status=404)
             
+            # Check enrollment
             enrollment = Enrollment.objects.filter(student=student, class_obj=session.class_obj).first()
             if not enrollment:
-                return JsonResponse({'error': f'{student.get_full_name()} is not enrolled in this class.'}, status=403)
+                return JsonResponse({'error': f'{student.get_full_name()} is not enrolled.'}, status=403)
             
             if enrollment.status == 'dropped':
-                return JsonResponse({'error': f'{student.get_full_name()} has been dropped from this class.'}, status=403)
+                return JsonResponse({'error': f'{student.get_full_name()} has been dropped.'}, status=403)
             
-            existing_attendance = Attendance.objects.filter(session=session, student=student).first()
-            if existing_attendance:
-                return JsonResponse({'error': f'{student.get_full_name()} already recorded attendance.'}, status=400)
+            # Check for duplicate
+            existing = Attendance.objects.filter(session=session, student=student).first()
+            if existing:
+                return JsonResponse({'error': f'{student.get_full_name()} already recorded.'}, status=400)
             
-            # Create attendance - time will be set automatically with local time
+            # Calculate late status
+            now = timezone.now()
+            grace_period_end = session.start_time + timedelta(minutes=15)
+            
+            if now <= grace_period_end:
+                status = 'present'
+            else:
+                status = 'late'
+            
+            # Create attendance
             attendance = Attendance.objects.create(
                 session=session,
                 student=student,
-                status='present'
+                status=status
             )
             
-            # Format time for response
-            time_formatted = attendance.time_in.strftime('%I:%M %p')
+            print(f"✅ Attendance recorded: {student.get_full_name()} - {status}")
             
             return JsonResponse({
                 'success': True,
-                'message': f'✅ Attendance recorded for {student.get_full_name()}',
+                'message': f'Attendance recorded for {student.get_full_name()}',
                 'student_name': student.get_full_name(),
-                'time_in': time_formatted
+                'time_in': attendance.time_in.strftime('%I:%M %p'),
+                'status': status
             })
             
-        except ClassSession.DoesNotExist:
-            return JsonResponse({'error': 'No active session found. Teacher needs to start the class first.'}, status=404)
-        except json.JSONDecodeError:
-            return JsonResponse({'error': 'Invalid JSON data'}, status=400)
         except Exception as e:
+            print(f"ERROR: {e}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'error': str(e)}, status=500)
     
-    return JsonResponse({'error': 'Invalid request method'}, status=400)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
 
 
 @csrf_exempt
@@ -1418,7 +1493,10 @@ def update_attendance_status(request):
     return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
 
 
-@login_required
+# ============================================
+# ATTENDANCE API (NO LOGIN REQUIRED FOR POLLING)
+# ============================================
+@csrf_exempt
 def get_session_attendance_api(request, session_id):
     """API endpoint to get attendance updates for a session"""
     try:
@@ -1426,23 +1504,25 @@ def get_session_attendance_api(request, session_id):
         attendances = Attendance.objects.filter(session=session).select_related('student')
         
         attendance_list = []
-        for attendance in attendances:
-            # Convert to local time for display
-            local_time = attendance.time_in
+        for att in attendances:
             attendance_list.append({
-                'student_id': attendance.student.id,
-                'student_name': attendance.student.get_full_name(),
-                'time_in': local_time.strftime('%I:%M %p'),
+                'student_id': str(att.student.id),
+                'student_name': att.student.get_full_name(),
+                'time_in': att.time_in.strftime('%I:%M %p'),
+                'status': att.status
             })
         
         return JsonResponse({
             'success': True,
-            'present_count': attendances.count(),
-            'attendance_rate': int((attendances.count() / session.class_obj.total_students) * 100) if session.class_obj.total_students > 0 else 0,
+            'present_count': attendances.filter(status='present').count(),
+            'late_count': attendances.filter(status='late').count(),
             'attendance_list': attendance_list
         })
+        
     except ClassSession.DoesNotExist:
         return JsonResponse({'success': False, 'error': 'Session not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 
 # ============================================
@@ -1500,3 +1580,102 @@ def delete_pdf_report(request, report_id):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=400)
+
+@login_required
+def delete_multiple_pdf_reports(request):
+    """Delete multiple PDF reports at once"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            report_ids = data.get('report_ids', [])
+            
+            if not report_ids:
+                return JsonResponse({'error': 'No reports selected'}, status=400)
+            
+            deleted_count = 0
+            errors = []
+            
+            for report_id in report_ids:
+                try:
+                    report = ClassPDFReport.objects.get(id=report_id, teacher=request.user)
+                    if report.pdf_file:
+                        report.pdf_file.delete()
+                    report.delete()
+                    deleted_count += 1
+                except ClassPDFReport.DoesNotExist:
+                    errors.append(f'Report {report_id} not found')
+                except Exception as e:
+                    errors.append(str(e))
+            
+            return JsonResponse({
+                'success': True,
+                'deleted_count': deleted_count,
+                'errors': errors,
+                'message': f'Successfully deleted {deleted_count} report(s)'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=400)
+
+@csrf_exempt
+def attendance_stream(request, session_id):
+    """Server-Sent Events stream for real-time attendance updates"""
+    def event_stream():
+        last_count = 0
+        while True:
+            try:
+                session = ClassSession.objects.get(id=session_id)
+                attendances = Attendance.objects.filter(session=session).select_related('student')
+                current_count = attendances.count()
+                
+                if current_count > last_count:
+                    # Get the latest attendance
+                    latest = attendances.order_by('-time_in').first()
+                    if latest:
+                        data = {
+                            'type': 'new_attendance',
+                            'student_id': str(latest.student.id),
+                            'student_name': latest.student.get_full_name(),
+                            'time_in': latest.time_in.strftime('%I:%M %p'),
+                            'status': latest.status,
+                            'present_count': attendances.filter(status='present').count(),
+                            'late_count': attendances.filter(status='late').count()
+                        }
+                        yield f"data: {json.dumps(data)}\n\n"
+                        last_count = current_count
+                
+                time.sleep(1)
+            except:
+                yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+                time.sleep(1)
+    
+    response = StreamingHttpResponse(event_stream(), content_type='text/event-stream')
+    response['Cache-Control'] = 'no-cache'
+    response['X-Accel-Buffering'] = 'no'
+    return response
+
+@csrf_exempt
+def get_attendance_simple(request, session_id):
+    """Simple API to get attendance data as JSON"""
+    try:
+        session = ClassSession.objects.get(id=session_id)
+        attendances = Attendance.objects.filter(session=session).select_related('student')
+        
+        result = []
+        for att in attendances:
+            result.append({
+                'student_id': att.student.id,
+                'student_name': att.student.get_full_name(),
+                'time_in': att.time_in.strftime('%I:%M %p'),
+                'status': att.status
+            })
+        
+        return JsonResponse({
+            'attendance': result,
+            'present_count': attendances.filter(status='present').count(),
+            'late_count': attendances.filter(status='late').count()
+        })
+    except:
+        return JsonResponse({'attendance': []})

@@ -60,6 +60,30 @@ class Class(models.Model):
         from django.utils import timezone
         today = timezone.now().date()
         return self.enrollments.filter(attendance_records__date=today, attendance_records__status='late').count()
+    
+    @property
+    def attendance_rate(self):
+        """Calculate average attendance rate for this class across all sessions"""
+        from .models import ClassSession, Attendance
+        
+        # Get all sessions for this class
+        sessions = ClassSession.objects.filter(class_obj=self)
+        
+        if not sessions.exists():
+            return 0
+        
+        total_sessions = sessions.count()
+        total_attendance = 0
+        
+        for session in sessions:
+            # Count total attendances (present + late) for this session (exclude absent)
+            attendances = Attendance.objects.filter(session=session).exclude(status='absent').count()
+            if self.total_students > 0:
+                total_attendance += (attendances / self.total_students) * 100
+        
+        if total_sessions > 0:
+            return round(total_attendance / total_sessions)
+        return 0
 
 
 class Enrollment(models.Model):
@@ -105,7 +129,7 @@ class ClassSession(models.Model):
     
     class_obj = models.ForeignKey(Class, on_delete=models.CASCADE, related_name='sessions')
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'admin'})
-    start_time = models.DateTimeField(auto_now_add=True)  # This will now use local time
+    start_time = models.DateTimeField(auto_now_add=True)
     end_time = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
     
@@ -126,7 +150,7 @@ class Attendance(models.Model):
     
     session = models.ForeignKey(ClassSession, on_delete=models.CASCADE, related_name='attendances')
     student = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'student'})
-    time_in = models.DateTimeField(auto_now_add=True)  # This will now use local time
+    time_in = models.DateTimeField(auto_now_add=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='present')
     
     class Meta:
@@ -143,7 +167,8 @@ class Attendance(models.Model):
     @property
     def date_formatted(self):
         return self.time_in.strftime('%B %d, %Y')
-    
+
+
 class ClassPDFReport(models.Model):
     """Store generated PDF reports for class sessions"""
     session = models.ForeignKey(ClassSession, on_delete=models.CASCADE, related_name='pdf_reports')
@@ -151,7 +176,7 @@ class ClassPDFReport(models.Model):
     teacher = models.ForeignKey(User, on_delete=models.CASCADE, limit_choices_to={'user_type': 'admin'})
     pdf_file = models.FileField(upload_to='attendance_reports/%Y/%m/%d/', max_length=500)
     filename = models.CharField(max_length=255)
-    file_size = models.IntegerField(default=0)  # Size in bytes
+    file_size = models.IntegerField(default=0)
     generated_at = models.DateTimeField(auto_now_add=True)
     total_students = models.IntegerField(default=0)
     present_count = models.IntegerField(default=0)

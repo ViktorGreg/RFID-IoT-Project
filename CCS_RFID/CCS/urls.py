@@ -19,4 +19,7 @@ urlpatterns = [
     path('api/get-latest-rfid/', views.get_latest_rfid, name='get_latest_rfid'),
     path('api/claim-existing-account/', views.claim_existing_account, name='claim_existing_account'),
     path('api/check-user-by-rfid/', views.check_user_by_rfid, name='check_user_by_rfid'),
+
+    path('api/upcoming-classes/', views.get_upcoming_classes, name='upcoming_classes'),
+    path('api/dismiss-notification/', views.dismiss_notification, name='dismiss_notification'),
 ]

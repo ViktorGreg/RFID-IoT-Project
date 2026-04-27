@@ -1,9 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Activity Log | Procurement Office{% endblock %}
-
-{% block header_subtitle %}Track and manage student attendance records{% endblock %}
+{% block title %}Activity Log | Attendance Tracker System{% endblock %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-6 max-w-7xl">
@@ -13,7 +11,7 @@
         <p class="text-gray-500 text-sm mt-1">View and manage all student attendance records</p>
     </div>
 
-    <!-- Stats Cards - Consistent with theme -->
+    <!-- Stats Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
             <div class="flex items-center justify-between">
@@ -23,7 +21,7 @@
                 </div>
                 <div class="w-10 h-10 bg-maroon/10 rounded-full flex items-center justify-center">
                     <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                     </svg>
                 </div>
             </div>
@@ -36,7 +34,7 @@
                 </div>
                 <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
                     <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                 </div>
             </div>
@@ -72,7 +70,6 @@
     <!-- Filters Bar -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
         <div class="flex flex-col md:flex-row gap-4">
-            <!-- Search -->
             <div class="flex-1">
                 <div class="relative">
                     <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -82,23 +79,18 @@
                            class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
                 </div>
             </div>
-            
-            <!-- Status Filter -->
             <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
                 <option value="all">All Status</option>
                 <option value="present">Present</option>
                 <option value="late">Late</option>
                 <option value="absent">Absent</option>
             </select>
-            
-            <!-- Date Range -->
             <div class="flex gap-2 items-center">
                 <input type="date" id="startDate" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
                 <span class="text-gray-400">→</span>
                 <input type="date" id="endDate" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
             </div>
-            
-            <!-- Refresh Button -->
+            <button id="clearFiltersBtn" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">Clear Filters</button>
             <button id="refreshBtn" class="px-4 py-2 bg-gradient-to-r from-maroon to-maroon-dark hover:from-maroon-dark hover:to-maroon text-white rounded-lg transition shadow-sm flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
@@ -127,13 +119,10 @@
                         <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
                         <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Time In</th>
                         <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                        <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="activityTableBody" class="divide-y divide-gray-100">
-                    <tr>
-                        <td colspan="8" class="text-center py-12 text-gray-400">Loading activities...</td>
-                    </tr>
+                    <tr><td colspan="7" class="text-center py-12 text-gray-400">Loading activities...</td</tr>
                 </tbody>
             </table>
         </div>
@@ -143,73 +132,12 @@
             <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
                 <p class="text-sm text-gray-600" id="paginationInfo">Showing 0 to 0 of 0 results</p>
                 <div class="flex gap-2">
-                    <button id="prevPage" disabled class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
-                        Previous
-                    </button>
+                    <button id="prevPage" disabled class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">Previous</button>
                     <span id="pageIndicator" class="px-3 py-1 text-sm text-gray-600">Page 1</span>
-                    <button id="nextPage" disabled class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">
-                        Next
-                    </button>
+                    <button id="nextPage" disabled class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">Next</button>
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<!-- Update Status Modal -->
-<div id="updateModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden items-center justify-center transition-all duration-300">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
-        <div class="bg-gradient-to-r from-maroon to-maroon-dark rounded-t-2xl px-6 py-4">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                        </svg>
-                    </div>
-                    <div>
-                        <h3 class="text-xl font-bold text-white">Update Status</h3>
-                        <p class="text-red-100 text-xs">Change attendance status</p>
-                    </div>
-                </div>
-                <button id="closeModalBtn" class="text-white/70 hover:text-white transition">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                    </svg>
-                </button>
-            </div>
-        </div>
-
-        <div class="p-6">
-            <div class="mb-4">
-                <label class="block text-gray-700 font-medium text-sm mb-2">Select New Status</label>
-                <select id="newStatus" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
-                    <option value="present">✅ Present</option>
-                    <option value="late">⏰ Late</option>
-                    <option value="absent">❌ Absent</option>
-                </select>
-            </div>
-            <input type="hidden" id="updateAttendanceId">
-            
-            <div class="flex gap-3 justify-end mt-6 pt-4 border-t border-gray-200">
-                <button id="cancelModalBtn" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition">
-                    Cancel
-                </button>
-                <button id="confirmUpdateBtn" class="px-4 py-2 bg-gradient-to-r from-maroon to-maroon-dark hover:from-maroon-dark hover:to-maroon text-white font-semibold rounded-lg shadow-md transition">
-                    Update Status
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Toast Notification -->
-<div id="toast" class="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg hidden transition-all duration-300 z-50">
-    <div class="flex items-center gap-3">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-        </svg>
-        <span id="toastMessage">Updated successfully!</span>
     </div>
 </div>
 
@@ -218,42 +146,33 @@
     let filteredActivities = [];
     let currentPage = 1;
     const rowsPerPage = 10;
-    let currentUpdateId = null;
     
-    // Status colors mapping
-    const statusColors = {
-        'present': { bg: 'bg-green-100', text: 'text-green-700', icon: '✅' },
-        'late': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '⏰' },
-        'absent': { bg: 'bg-red-100', text: 'text-red-700', icon: '❌' }
-    };
-    
-    // Load activities from API
     async function loadActivities() {
         const loadingIndicator = document.getElementById('loadingIndicator');
         const tableBody = document.getElementById('activityTableBody');
         
         loadingIndicator.classList.remove('hidden');
-        tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400">Loading activities...</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400">Loading activities...</td</tr>';
         
         try {
             const response = await fetch('/api/activity-log/');
             const data = await response.json();
             
-            if (data.success) {
+            if (data.success && data.activities) {
                 allActivities = data.activities;
+                console.log('Loaded', allActivities.length, 'activities');
                 applyFilters();
             } else {
-                tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-12 text-red-400">Error: ${data.error}</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-12 text-red-400">Error: ${data.error || 'No data'}</td</tr>`;
+                loadingIndicator.classList.add('hidden');
             }
         } catch (error) {
             console.error('Error:', error);
-            tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-red-400">Failed to load activities</td></tr>';
-        } finally {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-red-400">Failed to load activities</td</td>';
             loadingIndicator.classList.add('hidden');
         }
     }
     
-    // Apply filters and update UI
     function applyFilters() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
@@ -262,13 +181,14 @@
         
         filteredActivities = allActivities.filter(activity => {
             // Search filter
-            const matchesSearch = activity.student_name.toLowerCase().includes(searchTerm) ||
-                                 activity.student_id.toLowerCase().includes(searchTerm);
+            const matchesSearch = searchTerm === '' || 
+                activity.student_name.toLowerCase().includes(searchTerm) ||
+                activity.student_id.toLowerCase().includes(searchTerm);
             
             // Status filter
             const matchesStatus = statusFilter === 'all' || activity.status === statusFilter;
             
-            // Date filter
+            // Date filter - only apply if both dates are filled
             let matchesDate = true;
             if (startDate && endDate) {
                 const activityDate = new Date(activity.date);
@@ -280,27 +200,33 @@
             return matchesSearch && matchesStatus && matchesDate;
         });
         
-        // Update stats
+        console.log('Filtered to', filteredActivities.length, 'activities');
         updateStats();
-        
-        // Reset to first page and render
         currentPage = 1;
         renderTable();
+        document.getElementById('loadingIndicator').classList.add('hidden');
     }
     
-    // Update statistics cards
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('statusFilter').value = 'all';
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        applyFilters();
+    }
+    
     function updateStats() {
-        const presentCount = filteredActivities.filter(a => a.status === 'present').length;
-        const lateCount = filteredActivities.filter(a => a.status === 'late').length;
-        const absentCount = filteredActivities.filter(a => a.status === 'absent').length;
+        const total = filteredActivities.length;
+        const present = filteredActivities.filter(a => a.status === 'present').length;
+        const late = filteredActivities.filter(a => a.status === 'late').length;
+        const absent = filteredActivities.filter(a => a.status === 'absent').length;
         
-        document.getElementById('totalRecords').textContent = filteredActivities.length;
-        document.getElementById('presentCount').textContent = presentCount;
-        document.getElementById('lateCount').textContent = lateCount;
-        document.getElementById('absentCount').textContent = absentCount;
+        document.getElementById('totalRecords').innerText = total;
+        document.getElementById('presentCount').innerText = present;
+        document.getElementById('lateCount').innerText = late;
+        document.getElementById('absentCount').innerText = absent;
     }
     
-    // Render table with pagination
     function renderTable() {
         const tableBody = document.getElementById('activityTableBody');
         const start = (currentPage - 1) * rowsPerPage;
@@ -308,62 +234,62 @@
         const pageActivities = filteredActivities.slice(start, end);
         
         if (pageActivities.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400">No activities found</td></tr>';
-        } else {
-            tableBody.innerHTML = pageActivities.map(activity => {
-                const colors = statusColors[activity.status] || statusColors.absent;
-                return `
-                    <tr class="hover:bg-gray-50 transition">
-                        <td class="px-4 md:px-6 py-3">
-                            <div class="flex items-center gap-2">
-                                <div class="w-8 h-8 rounded-full bg-maroon/10 flex items-center justify-center text-maroon font-semibold text-xs">
-                                    ${getInitials(activity.student_name)}
-                                </div>
-                                <span class="text-sm font-medium text-gray-800">${escapeHtml(activity.student_name)}</span>
-                            </div>
-                        </td>
-                        <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.student_id)}</td>
-                        <td class="px-4 md:px-6 py-3">
-                            <div class="text-sm font-medium text-gray-800">${escapeHtml(activity.class_name)}</div>
-                            <div class="text-xs text-gray-500">${escapeHtml(activity.class_description)}</div>
-                        </td>
-                        <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.section)}</td>
-                        <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.date)}</td>
-                        <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.time_in)}</td>
-                        <td class="px-4 md:px-6 py-3">
-                            <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${colors.bg} ${colors.text}">
-                                ${colors.icon} ${activity.status.charAt(0).toUpperCase() + activity.status.slice(1)}
-                            </span>
-                        </td>
-                        <td class="px-4 md:px-6 py-3">
-                            <button onclick="openUpdateModal(${activity.id}, '${activity.status}')" 
-                                    class="text-maroon hover:text-maroon-dark text-sm font-medium transition">
-                                Edit
-                            </button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400">No activities found</td</tr>';
+            document.getElementById('paginationInfo').textContent = 'Showing 0 to 0 of 0 results';
+            document.getElementById('pageIndicator').textContent = 'Page 1 of 1';
+            document.getElementById('prevPage').disabled = true;
+            document.getElementById('nextPage').disabled = true;
+            return;
         }
         
-        // Update pagination info
+        tableBody.innerHTML = pageActivities.map(activity => {
+            let statusBadge = '';
+            if (activity.status === 'present') {
+                statusBadge = '<span class="bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs">✅ Present</span>';
+            } else if (activity.status === 'late') {
+                statusBadge = '<span class="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full text-xs">⏰ Late</span>';
+            } else {
+                statusBadge = '<span class="bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs">❌ Absent</span>';
+            }
+            
+            return `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 md:px-6 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-maroon/10 flex items-center justify-center text-maroon font-semibold text-xs">
+                                ${getInitials(activity.student_name)}
+                            </div>
+                            <span class="text-sm font-medium text-gray-800">${escapeHtml(activity.student_name)}</span>
+                        </div>
+                     </div>
+                    </note>
+                    <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.student_id)}</note>
+                    <td class="px-4 md:px-6 py-3">
+                        <div class="text-sm font-medium text-gray-800">${escapeHtml(activity.class_name)}</div>
+                        <div class="text-xs text-gray-500">${escapeHtml(activity.class_description)}</div>
+                     </note>
+                    <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.section)}</note>
+                    <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.date)}</note>
+                    <td class="px-4 md:px-6 py-3 text-sm text-gray-600">${escapeHtml(activity.time)}</note>
+                    <td class="px-4 md:px-6 py-3">${statusBadge}</note>
+                 </tr>
+            `;
+        }).join('');
+        
         const totalPages = Math.ceil(filteredActivities.length / rowsPerPage);
         const startNum = start + 1;
         const endNum = Math.min(end, filteredActivities.length);
         document.getElementById('paginationInfo').textContent = `Showing ${startNum} to ${endNum} of ${filteredActivities.length} results`;
         document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages || 1}`;
-        
-        // Update button states
         document.getElementById('prevPage').disabled = currentPage === 1;
         document.getElementById('nextPage').disabled = currentPage >= totalPages;
     }
     
-    // Get initials
     function getInitials(name) {
+        if (!name) return '??';
         return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     }
     
-    // Escape HTML
     function escapeHtml(str) {
         if (!str) return '';
         return str.replace(/[&<>]/g, function(m) {
@@ -374,115 +300,20 @@
         });
     }
     
-    // Open update modal
-    window.openUpdateModal = function(attendanceId, currentStatus) {
-        currentUpdateId = attendanceId;
-        document.getElementById('newStatus').value = currentStatus;
-        document.getElementById('updateModal').classList.remove('hidden');
-        document.getElementById('updateModal').classList.add('flex');
-        setTimeout(() => {
-            document.getElementById('modalContent').classList.remove('scale-95', 'opacity-0');
-            document.getElementById('modalContent').classList.add('scale-100', 'opacity-100');
-        }, 10);
-    };
-    
-    // Close modal
-    function closeModal() {
-        document.getElementById('modalContent').classList.remove('scale-100', 'opacity-100');
-        document.getElementById('modalContent').classList.add('scale-95', 'opacity-0');
-        setTimeout(() => {
-            document.getElementById('updateModal').classList.add('hidden');
-            document.getElementById('updateModal').classList.remove('flex');
-            currentUpdateId = null;
-        }, 200);
-    }
-    
-    // Show toast notification
-    function showToast(message, isError = false) {
-        const toast = document.getElementById('toast');
-        const toastMessage = document.getElementById('toastMessage');
-        toastMessage.textContent = message;
-        toast.className = `fixed bottom-4 right-4 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white px-6 py-3 rounded-lg shadow-lg transition-all duration-300 z-50`;
-        toast.classList.remove('hidden');
-        
-        setTimeout(() => {
-            toast.classList.add('hidden');
-        }, 3000);
-    }
-    
-    // Update attendance status
-    async function updateAttendance() {
-        const newStatus = document.getElementById('newStatus').value;
-        
-        if (!currentUpdateId) return;
-        
-        try {
-            const response = await fetch('/api/update-attendance-status/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': '{{ csrf_token }}'
-                },
-                body: JSON.stringify({
-                    attendance_id: currentUpdateId,
-                    status: newStatus
-                })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                showToast(`Status updated to ${newStatus}!`);
-                closeModal();
-                loadActivities();
-            } else {
-                showToast(data.error || 'Failed to update status', true);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            showToast('Failed to update status', true);
-        }
-    }
-    
     // Event listeners
     document.getElementById('searchInput').addEventListener('input', applyFilters);
     document.getElementById('statusFilter').addEventListener('change', applyFilters);
     document.getElementById('startDate').addEventListener('change', applyFilters);
     document.getElementById('endDate').addEventListener('change', applyFilters);
     document.getElementById('refreshBtn').addEventListener('click', loadActivities);
-    document.getElementById('prevPage').addEventListener('click', () => {
-        if (currentPage > 1) {
-            currentPage--;
-            renderTable();
-        }
-    });
+    document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+    document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
     document.getElementById('nextPage').addEventListener('click', () => {
         const totalPages = Math.ceil(filteredActivities.length / rowsPerPage);
-        if (currentPage < totalPages) {
-            currentPage++;
-            renderTable();
-        }
+        if (currentPage < totalPages) { currentPage++; renderTable(); }
     });
     
-    // Modal event listeners
-    document.getElementById('closeModalBtn').addEventListener('click', closeModal);
-    document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
-    document.getElementById('confirmUpdateBtn').addEventListener('click', updateAttendance);
-    document.getElementById('updateModal').addEventListener('click', (e) => {
-        if (e.target === document.getElementById('updateModal')) closeModal();
-    });
-    
-    // Set default date range (start of current semester to today)
-    const today = new Date();
-    const startOfYear = new Date(today.getFullYear(), 0, 1);
-    
-    document.getElementById('startDate').value = startOfYear.toISOString().split('T')[0];
-    document.getElementById('endDate').value = today.toISOString().split('T')[0];
-    
-    // Initialize
+    // Initialize - NO DEFAULT DATE FILTERS
     loadActivities();
-    
-    // Auto-refresh every 30 seconds
-    setInterval(loadActivities, 30000);
 </script>
 {% endblock %}

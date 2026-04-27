@@ -7,4 +7,6 @@ urlpatterns = [
     path('stud_dashboard/', views.stud_dashboard, name='stud_dashboard'),
     path('student_subject/', views.student_subject, name='student_subject'),
     path('student_view_class/', views.student_view_class, name='student_view_class'),
+    path('api/activity-log/', views.get_activity_log, name='get_activity_log'),
+    path('api/update-attendance-status/', views.update_attendance_status, name='update_attendance_status'),
 ]

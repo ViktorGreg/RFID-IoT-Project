@@ -64,6 +64,19 @@
     .notification-bell:hover {
       animation: subtlePulse 1s infinite;
     }
+    
+    @keyframes bellRing {
+      0% { transform: rotate(0); }
+      10% { transform: rotate(15deg); }
+      20% { transform: rotate(-10deg); }
+      30% { transform: rotate(5deg); }
+      40% { transform: rotate(-5deg); }
+      50% { transform: rotate(0); }
+      100% { transform: rotate(0); }
+    }
+    .bell-ring {
+      animation: bellRing 1s ease;
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -110,13 +123,32 @@
     {% if user.is_authenticated %}
     <div class="flex items-center gap-2">
       <!-- Notification Bell -->
-      <button id="notificationBell" class="notification-bell text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors relative" aria-label="Notifications">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-          <path d="M13.73 21a2 2 0 01-3.46 0" />
-        </svg>
-        <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-maroon-dark"></span>
-      </button>
+      <div class="relative">
+        <button id="notificationBell" class="notification-bell text-white/80 hover:text-white p-1.5 rounded-full hover:bg-white/10 transition-colors relative" aria-label="Notifications">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 01-3.46 0" />
+          </svg>
+          <span id="notificationBadge" class="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center hidden">0</span>
+        </button>
+
+        <!-- Notification Dropdown -->
+        <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-50 border border-gray-200 overflow-hidden">
+          <div class="bg-gradient-to-r from-maroon to-maroon-dark px-4 py-3">
+            <h3 class="text-white font-semibold text-sm">Upcoming Classes</h3>
+            <p class="text-white/70 text-xs">Get notified before your class starts</p>
+          </div>
+          <div id="notificationList" class="max-h-96 overflow-y-auto">
+            <div class="p-8 text-center text-gray-500 text-sm">
+              <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+              </svg>
+              <p>No upcoming classes</p>
+              <p class="text-xs mt-1">Notifications will appear here when class is approaching</p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- User dropdown menu -->
       <div class="relative">
@@ -357,13 +389,182 @@
       });
     }
 
-    // ─── NOTIFICATION BELL ─────────────────
-    const notificationBell = document.getElementById('notificationBell');
-    if (notificationBell) {
-      notificationBell.addEventListener('click', () => {
-        console.log('Notification bell clicked - functionality coming soon!');
+    // ─── NOTIFICATION SYSTEM ─────────────────
+    let notificationCheckInterval = null;
+
+    function getCSRFToken() {
+      const cookieValue = document.cookie.match('(^|;)\\s*csrftoken\\s*=\\s*([^;]+)')?.pop() || '';
+      return cookieValue;
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function createNotificationItem(notif) {
+      return `
+        <div class="notification-item px-4 py-3 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition" 
+             data-class-id="${notif.class_id}" 
+             data-threshold="${notif.threshold}" 
+             data-url="${notif.url}">
+          <div class="text-xs text-maroon font-semibold mb-1">${notif.start_time} · Room ${escapeHtml(notif.room)}</div>
+          <div class="text-sm font-semibold text-gray-800">${escapeHtml(notif.class_name)}</div>
+          <div class="text-xs text-gray-500 mt-1">${escapeHtml(notif.class_description)}</div>
+          <div class="text-xs text-maroon mt-2 flex items-center gap-1">
+            View class
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M9 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </div>
+      `;
+    }
+
+    function updateNotificationUI(notifications) {
+      const notificationList = document.getElementById('notificationList');
+      const badge = document.getElementById('notificationBadge');
+      
+      if (!notificationList) return;
+      
+      if (!notifications || notifications.length === 0) {
+        notificationList.innerHTML = `
+          <div class="p-8 text-center text-gray-500 text-sm">
+            <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+            </svg>
+            <p>No upcoming classes</p>
+            <p class="text-xs mt-1">Notifications will appear here when class is approaching</p>
+          </div>
+        `;
+        if (badge) badge.classList.add('hidden');
+        return;
+      }
+      
+      if (badge) {
+        badge.classList.remove('hidden');
+        badge.textContent = notifications.length;
+      }
+      
+      // Group notifications by threshold
+      const grouped = { 60: [], 30: [], 10: [] };
+      notifications.forEach(notif => {
+        if (grouped[notif.threshold]) {
+          grouped[notif.threshold].push(notif);
+        }
+      });
+      
+      let html = '';
+      
+      if (grouped[60].length > 0) {
+        html += `<div class="px-3 py-2 bg-yellow-50 border-b border-yellow-200">
+                    <span class="text-xs font-semibold text-yellow-700">⚠️ Starting in 1 hour</span>
+                 </div>`;
+        grouped[60].forEach(notif => {
+          html += createNotificationItem(notif);
+        });
+      }
+      
+      if (grouped[30].length > 0) {
+        html += `<div class="px-3 py-2 bg-orange-50 border-b border-orange-200">
+                    <span class="text-xs font-semibold text-orange-700">⚠️ Starting in 30 minutes</span>
+                 </div>`;
+        grouped[30].forEach(notif => {
+          html += createNotificationItem(notif);
+        });
+      }
+      
+      if (grouped[10].length > 0) {
+        html += `<div class="px-3 py-2 bg-red-50 border-b border-red-200">
+                    <span class="text-xs font-semibold text-red-700">🔴 Starting in 10 minutes!</span>
+                 </div>`;
+        grouped[10].forEach(notif => {
+          html += createNotificationItem(notif);
+        });
+      }
+      
+      notificationList.innerHTML = html;
+    }
+
+    async function dismissNotification(classId, threshold) {
+      try {
+        await fetch('/api/dismiss-notification/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCSRFToken()
+          },
+          body: JSON.stringify({ class_id: classId, threshold: threshold })
+        });
+      } catch (error) {
+        console.error('Error dismissing notification:', error);
+      }
+    }
+
+    async function checkUpcomingClasses() {
+      try {
+        const response = await fetch('/api/upcoming-classes/');
+        const data = await response.json();
+        
+        if (data.success && data.notifications && data.notifications.length > 0) {
+          updateNotificationUI(data.notifications);
+          
+          // Animate bell for new notifications
+          const bell = document.getElementById('notificationBell');
+          if (bell) {
+            bell.classList.add('bell-ring');
+            setTimeout(() => bell.classList.remove('bell-ring'), 1000);
+          }
+        } else {
+          updateNotificationUI([]);
+        }
+      } catch (error) {
+        console.error('Error checking upcoming classes:', error);
+      }
+    }
+
+    // Notification Bell click handlers
+    const bell = document.getElementById('notificationBell');
+    const dropdown = document.getElementById('notificationDropdown');
+
+    if (bell && dropdown) {
+      bell.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dropdown.classList.toggle('hidden');
+      });
+      
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!bell.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      });
+      
+      // Handle notification item click
+      document.addEventListener('click', async (e) => {
+        const item = e.target.closest('.notification-item');
+        if (item) {
+          const classId = item.dataset.classId;
+          const threshold = item.dataset.threshold;
+          const url = item.dataset.url;
+          
+          if (url) {
+            await dismissNotification(classId, threshold);
+            window.location.href = url;
+          }
+        }
       });
     }
+
+    // Start checking for upcoming classes every 30 seconds if user is admin/teacher
+    {% if user.user_type == 'admin' %}
+    if (document.getElementById('notificationBell')) {
+      checkUpcomingClasses();
+      notificationCheckInterval = setInterval(checkUpcomingClasses, 30000);
+    }
+    {% endif %}
   </script>
 
   {% block extra_scripts %}{% endblock %}

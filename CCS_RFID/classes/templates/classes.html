@@ -33,7 +33,7 @@
   </div>
 </div>
 
-<!-- Stats Cards -->
+<!-- Stats Cards with Accurate Data -->
 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
   <div class="bg-white rounded-xl p-5 shadow-sm border border-gray-100 flex items-center justify-between">
     <div>
@@ -64,7 +64,7 @@
       </div>
     </div>
     <div class="text-right">
-      <p class="text-4xl font-bold text-gray-800 leading-none">{{ total_students|default:"0" }}</p>
+      <p class="text-4xl font-bold text-gray-800 leading-none" id="totalStudentsDisplay">{{ total_students|default:"0" }}</p>
       <p class="text-xs text-gray-400 mt-1">enrolled</p>
     </div>
   </div>
@@ -81,7 +81,7 @@
       </div>
     </div>
     <div class="text-right">
-      <p class="text-4xl font-bold text-gray-800 leading-none">{{ avg_attendance|default:"0" }}%</p>
+      <p class="text-4xl font-bold text-gray-800 leading-none" id="avgAttendanceDisplay">{{ avg_attendance|default:"0" }}%</p>
       <p class="text-xs text-gray-400 mt-1">overall rate</p>
     </div>
   </div>
@@ -97,7 +97,7 @@
         <div class="flex items-start justify-between mb-3">
           <div>
             <h3 class="text-lg font-bold text-gray-800">{{ class.subject_description|truncatechars:30 }}</h3>
-            <p class="text-xs text-gray-500 mt-1">{{ class.subject_code }}</p>
+            <p class="text-xs text-gray-500 mt-1">{{ class.subject_code }} | Section: {{ class.section|default:"N/A" }}</p>
           </div>
           <div class="w-10 h-10 rounded-full bg-maroon/10 flex items-center justify-center">
             <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -125,6 +125,17 @@
               <path d="M12 6.25278V19.2528M12 6.25278C10.8321 5.47686 9.24649 5 7.5 5C5.75351 5 4.16789 5.47686 3 6.25278M12 6.25278C13.1679 5.47686 14.7535 5 16.5 5C18.2465 5 19.8321 5.47686 21 6.25278"/>
             </svg>
             <span class="text-gray-600">{{ class.enrollments.count }} Students</span>
+          </div>
+          <!-- Add Attendance Rate for this class -->
+          <div class="flex items-center gap-2 text-sm pt-1">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+            </svg>
+            <span class="text-gray-600">Class Avg: 
+              <span class="font-semibold {% if class.attendance_rate >= 80 %}text-green-600{% elif class.attendance_rate >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                {{ class.attendance_rate|default:0 }}%
+              </span>
+            </span>
           </div>
         </div>
         
@@ -256,6 +267,15 @@
 </div>
 
 <script>
+  // Calculate accurate totals from Django context
+  const totalClasses = {{ total_classes|default:0 }};
+  const totalStudents = {{ total_students|default:0 }};
+  const avgAttendance = {{ avg_attendance|default:0 }};
+  
+  // Update stats display with accurate data
+  document.getElementById('totalStudentsDisplay').innerText = totalStudents;
+  document.getElementById('avgAttendanceDisplay').innerText = avgAttendance + '%';
+  
   // Upload Modal functionality
   const uploadBtn = document.getElementById('uploadMasterlistBtn');
   const modal = document.getElementById('uploadModal');
@@ -366,7 +386,6 @@
         alert(body.message);
         location.reload();
       } else if (body.has_conflicts) {
-        // Show conflict modal
         showConflictModal(body.conflicts);
         uploadSubmitBtn.disabled = false;
         uploadSubmitBtn.innerText = 'Upload';

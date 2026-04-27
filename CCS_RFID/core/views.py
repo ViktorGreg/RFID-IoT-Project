@@ -1,18 +1,29 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from classes.models import Enrollment, Class
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from classes.models import Enrollment, Class, ClassSession, Attendance
+import json
+
 
 @login_required
 def dashboard(request):
+    """Teacher dashboard"""
     return render(request, 'dashboard.html')
+
 
 @login_required
 def activity(request):
+    """Activity log page"""
     return render(request, 'activity.html')
+
 
 @login_required
 def stud_dashboard(request):
+    """Student dashboard"""
     return render(request, 'stud_dashboard.html')
+
 
 @login_required
 def student_subject(request):
@@ -62,6 +73,7 @@ def student_subject(request):
     }
     return render(request, 'student_subject.html', context)
 
+
 @login_required
 def student_view_class(request):
     """Display class details for a student (view only)"""
@@ -98,3 +110,70 @@ def student_view_class(request):
         'user_absences_left': 5 - (user_enrollment.absence_count if user_enrollment else 0),
     }
     return render(request, 'student_view_class.html', context)
+
+
+@login_required
+def get_activity_log(request):
+    """API endpoint to get activity log - FIXED VERSION"""
+    try:
+        # Get ALL attendance records
+        attendances = Attendance.objects.all().select_related('student', 'session__class_obj').order_by('-time_in')
+        
+        activities = []
+        
+        for attendance in attendances:
+            student = attendance.student
+            session = attendance.session
+            class_obj = session.class_obj if session else None
+            
+            activities.append({
+                'id': attendance.id,
+                'student_name': student.get_full_name(),
+                'student_id': student.student_id if hasattr(student, 'student_id') else 'N/A',
+                'class_name': class_obj.subject_code if class_obj else 'N/A',
+                'class_description': class_obj.subject_description if class_obj else 'N/A',
+                'section': class_obj.section if class_obj and class_obj.section else 'N/A',
+                'date': session.start_time.strftime('%B %d, %Y') if session else 'N/A',
+                'time': attendance.time_in.strftime('%I:%M %p') if attendance.time_in else 'N/A',
+                'status': attendance.status
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'activities': activities
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def update_attendance_status(request):
+    """API endpoint to update attendance status"""
+    try:
+        data = json.loads(request.body)
+        attendance_id = data.get('attendance_id')
+        new_status = data.get('status')
+        
+        attendance = Attendance.objects.get(id=attendance_id)
+        
+        # Verify valid status
+        valid_statuses = ['present', 'late', 'absent']
+        if new_status not in valid_statuses:
+            return JsonResponse({'success': False, 'error': 'Invalid status'}, status=400)
+        
+        # Update status
+        attendance.status = new_status
+        attendance.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Status updated to {new_status}'
+        })
+        
+    except Attendance.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Attendance record not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

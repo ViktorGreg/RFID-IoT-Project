@@ -5,13 +5,16 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, timedelta  # Add 'datetime' here
 import json
 import logging
 import re
 
 from .forms import AdminLoginForm, StudentLoginForm, AdminRegistrationForm, StudentRegistrationForm
 from .models import User, PendingRFID
+
+# Add this import for the Class model
+from classes.models import Class
 
 logger = logging.getLogger(__name__)
 
@@ -534,3 +537,81 @@ def logout_view(request):
     logout(request)
     messages.success(request, 'You have been logged out successfully.')
     return redirect('adminLogin')
+
+@login_required
+def get_upcoming_classes(request):
+    """API endpoint to get classes that are starting soon"""
+    from django.utils import timezone
+    from datetime import datetime, timedelta  # Add this import inside the function
+    
+    now = timezone.now()
+    current_date = now.date()
+    
+    # Get all classes for the teacher
+    user_classes = Class.objects.filter(teacher=request.user)
+    
+    upcoming_notifications = []
+    
+    for class_obj in user_classes:
+        class_start_time = class_obj.time_from
+        class_day = class_obj.day.lower()
+        
+        # Get current day of week
+        current_day = current_date.strftime('%A').lower()
+        
+        # Check if class is today
+        if class_day not in current_day:
+            continue
+        
+        # Combine date and time
+        class_start_datetime = datetime.combine(current_date, class_start_time)
+        class_start_datetime = timezone.make_aware(class_start_datetime)
+        
+        # Calculate time difference in minutes
+        time_diff = (class_start_datetime - now).total_seconds() / 60
+        
+        # Check for thresholds (60, 30, 10 minutes)
+        thresholds = [60, 30, 10]
+        
+        for threshold in thresholds:
+            if 0 < time_diff <= threshold + 5:  # Within threshold or slightly over
+                notification_key = f'notified_{class_obj.id}_{threshold}'
+                
+                if not request.session.get(notification_key, False):
+                    upcoming_notifications.append({
+                        'class_id': class_obj.id,
+                        'class_name': class_obj.subject_code,
+                        'class_description': class_obj.subject_description,
+                        'room': class_obj.room,
+                        'start_time': class_start_time.strftime('%I:%M %p'),
+                        'minutes_until': round(time_diff),
+                        'threshold': threshold,
+                        'url': f'/view_class/?class_id={class_obj.id}',
+                        'notification_key': notification_key
+                    })
+    
+    return JsonResponse({
+        'success': True,
+        'notifications': upcoming_notifications
+    })
+
+@login_required
+def dismiss_notification(request):
+    """Mark a notification as dismissed so it doesn't show again"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            class_id = data.get('class_id')
+            threshold = data.get('threshold')
+            
+            if class_id and threshold:
+                notification_key = f'notified_{class_id}_{threshold}'
+                request.session[notification_key] = True
+                request.session.modified = True
+                return JsonResponse({'success': True})
+            
+            return JsonResponse({'error': 'Missing data'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    return JsonResponse({'error': 'Method not allowed'}, status=400)

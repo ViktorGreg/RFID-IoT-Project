@@ -113,7 +113,7 @@
   </div>
 
   <div class="overflow-x-auto">
-    <table class="w-full min-w-[600px]">
+    <table class="w-full min-w-[800px]">
       <thead class="bg-gray-50 border-b border-gray-200">
         <tr>
           <th class="px-3 md:px-5 py-3 text-left text-xs font-semibold text-gray-600">#</th>
@@ -122,12 +122,12 @@
           <th class="px-3 md:px-5 py-3 text-left text-xs font-semibold text-gray-600">Gender</th>
           <th class="px-3 md:px-5 py-3 text-left text-xs font-semibold text-gray-600">Status</th>
           <th class="px-3 md:px-5 py-3 text-left text-xs font-semibold text-gray-600">Absences</th>
-          <th class="px-3 md:px-5 py-3 text-left text-xs font-semibold text-gray-600">Action</th>
+          <th class="px-3 md:px-5 py-3 text-left text-xs font-semibold text-gray-600">Actions</th>
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100" id="studentTableBody">
         {% for student in students %}
-        <tr class="hover:bg-gray-50 transition-colors student-row" data-student-id="{{ student.id }}">
+        <tr class="hover:bg-gray-50 transition-colors student-row" data-student-id="{{ student.id }}" data-student-name="{{ student.name }}">
           <td class="px-3 md:px-5 py-3 text-sm text-gray-500">{{ forloop.counter }}</td>
           <td class="px-3 md:px-5 py-3">
             <div class="flex items-center gap-2 md:gap-3">
@@ -139,8 +139,7 @@
                 <p class="text-xs text-gray-500 student-email hidden md:block">{{ student.email }}</p>
               </div>
             </div>
-           </div>
-           </td>
+          </td>
           <td class="px-3 md:px-5 py-3 text-sm text-gray-600 student-id">{{ student.student_id }}</td>
           <td class="px-3 md:px-5 py-3 text-sm text-gray-600 student-gender">{{ student.gender }}</td>
           <td class="px-3 md:px-5 py-3 student-status">
@@ -153,22 +152,38 @@
             {% endif %}
           </td>
           <td class="px-3 md:px-5 py-3 student-absences">
-            <span class="{% if student.absences >= 5 %}text-red-600 font-semibold{% elif student.absences >= 4 %}text-yellow-600 font-semibold{% else %}text-gray-600{% endif %}">
+            <span class="absence-count {% if student.absences >= 5 %}text-red-600 font-semibold{% elif student.absences >= 4 %}text-yellow-600 font-semibold{% else %}text-gray-600{% endif %}">
               {{ student.absences }} / 5
             </span>
           </td>
           <td class="px-3 md:px-5 py-3">
-            <button class="view-student-btn text-maroon hover:text-maroon-light text-sm font-medium transition-colors" 
-                    data-id="{{ student.id }}"
-                    data-name="{{ student.name }}"
-                    data-email="{{ student.email }}"
-                    data-student-id="{{ student.student_id }}"
-                    data-gender="{{ student.gender }}"
-                    data-status="{% if student.status == 'dropped' %}Dropped{% elif student.absences >= 4 %}At Risk{% else %}Enrolled{% endif %}"
-                    data-absences="{{ student.absences }}"
-                    data-course="{{ student.course }}">
-              View
-            </button>
+            <div class="flex gap-2">
+              <button class="view-student-btn text-maroon hover:text-maroon-light text-sm font-medium transition-colors" 
+                      data-id="{{ student.id }}"
+                      data-name="{{ student.name }}"
+                      data-email="{{ student.email }}"
+                      data-student-id="{{ student.student_id }}"
+                      data-gender="{{ student.gender }}"
+                      data-status="{% if student.status == 'dropped' %}Dropped{% elif student.absences >= 4 %}At Risk{% else %}Enrolled{% endif %}"
+                      data-absences="{{ student.absences }}"
+                      data-course="{{ student.course }}">
+                View
+              </button>
+              {% if student.status != 'dropped' %}
+              <button class="add-absence-btn text-yellow-600 hover:text-yellow-700 text-sm font-medium transition-colors" 
+                      data-id="{{ student.id }}"
+                      data-name="{{ student.name }}"
+                      data-absences="{{ student.absences }}">
+                +1 Absence
+              </button>
+              <button class="remove-absence-btn text-green-600 hover:text-green-700 text-sm font-medium transition-colors" 
+                      data-id="{{ student.id }}"
+                      data-name="{{ student.name }}"
+                      data-absences="{{ student.absences }}">
+                -1 Absence
+              </button>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% empty %}
@@ -184,7 +199,6 @@
 <!-- Student Details Modal -->
 <div id="studentDetailsModal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center transition-all duration-300">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-4 transform transition-all duration-300 scale-95 opacity-0" id="modalContent">
-    <!-- Modal Header -->
     <div class="bg-gradient-to-r from-maroon to-maroon-dark rounded-t-2xl px-6 py-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -205,14 +219,9 @@
         </button>
       </div>
     </div>
-
-    <!-- Modal Body -->
     <div class="p-4 md:p-6 max-h-[80vh] overflow-y-auto">
-      <!-- Student Avatar and Basic Info -->
       <div class="flex flex-col md:flex-row gap-6 items-center md:items-start mb-6 pb-6 border-b border-gray-200">
-        <div class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-maroon to-maroon-dark flex items-center justify-center text-white text-2xl md:text-3xl font-bold shadow-lg" id="studentAvatar">
-          JD
-        </div>
+        <div class="w-20 h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-maroon to-maroon-dark flex items-center justify-center text-white text-2xl md:text-3xl font-bold shadow-lg" id="studentAvatar"></div>
         <div class="flex-1 text-center md:text-left">
           <h2 class="text-xl md:text-2xl font-bold text-gray-800" id="studentFullName"></h2>
           <p class="text-gray-500 text-sm" id="studentEmail"></p>
@@ -221,8 +230,6 @@
           </div>
         </div>
       </div>
-
-      <!-- Student Information Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div class="bg-gray-50 rounded-lg p-3 md:p-4">
           <p class="text-xs text-gray-500 uppercase tracking-wider mb-1">Student ID</p>
@@ -246,12 +253,8 @@
           </div>
         </div>
       </div>
-
-      <!-- Warning Message (if applicable) -->
       <div id="warningMessage" class="hidden mb-6 p-4 rounded-lg"></div>
     </div>
-
-    <!-- Modal Footer -->
     <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
       <button id="closeModalFooterBtn" class="px-5 py-2 bg-maroon text-white rounded-lg hover:bg-maroon-dark transition font-medium">
         Close
@@ -297,8 +300,24 @@
 </div>
 
 <script>
-  // Message Modal Function
-  function showMessageModal(type, title, message) {
+  // Get CSRF token
+  function getCSRFToken() {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, 10) === ('csrftoken=')) {
+          cookieValue = decodeURIComponent(cookie.substring(10));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+  
+  // Show message modal
+  function showMessage(type, title, message) {
     const modal = document.getElementById('messageModal');
     const iconDiv = document.getElementById('messageIcon');
     const iconSvg = document.getElementById('messageIconSvg');
@@ -309,70 +328,128 @@
       iconDiv.className = 'w-10 h-10 rounded-full bg-green-100 flex items-center justify-center';
       iconSvg.innerHTML = '<path d="M9 11l3 3L22 4"/>';
       iconSvg.setAttribute('stroke', '#059669');
-      titleElem.textContent = title || 'Success!';
+      titleElem.textContent = title;
       titleElem.className = 'text-lg font-semibold text-green-700';
-    } else if (type === 'error') {
+    } else {
       iconDiv.className = 'w-10 h-10 rounded-full bg-red-100 flex items-center justify-center';
       iconSvg.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
       iconSvg.setAttribute('stroke', '#dc2626');
-      titleElem.textContent = title || 'Error!';
+      titleElem.textContent = title;
       titleElem.className = 'text-lg font-semibold text-red-700';
-    } else {
-      iconDiv.className = 'w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center';
-      iconSvg.innerHTML = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
-      iconSvg.setAttribute('stroke', '#3b82f6');
-      titleElem.textContent = title || 'Information';
-      titleElem.className = 'text-lg font-semibold text-blue-700';
     }
     
     textElem.textContent = message;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    setTimeout(() => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }, 3000);
   }
   
-  function closeMessageModal() {
-    const modal = document.getElementById('messageModal');
-    modal.classList.add('hidden');
-    modal.classList.remove('flex');
+  // Update absence function
+  function updateAbsence(studentId, action, buttonElement) {
+    const classId = {{ class.id }};
+    const formData = new FormData();
+    formData.append('student_id', studentId);
+    formData.append('class_id', classId);
+    formData.append('action', action);
+    
+    fetch('/api/update-student-absence/', {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCSRFToken(),
+      },
+      body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Update the UI
+        const row = buttonElement.closest('tr');
+        const absenceSpan = row.querySelector('.student-absences span');
+        const statusCell = row.querySelector('.student-status');
+        const addBtn = row.querySelector('.add-absence-btn');
+        const removeBtn = row.querySelector('.remove-absence-btn');
+        
+        // Update absence count display
+        absenceSpan.textContent = `${data.new_absences} / 5`;
+        
+        // Update status badge
+        if (data.new_absences >= 5) {
+          statusCell.innerHTML = '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Dropped</span>';
+          if (addBtn) addBtn.style.display = 'none';
+          if (removeBtn) removeBtn.style.display = 'none';
+        } else if (data.new_absences >= 4) {
+          statusCell.innerHTML = '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">At Risk</span>';
+        } else {
+          statusCell.innerHTML = '<span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Enrolled</span>';
+        }
+        
+        // Update button data attributes
+        if (addBtn) addBtn.setAttribute('data-absences', data.new_absences);
+        if (removeBtn) removeBtn.setAttribute('data-absences', data.new_absences);
+        
+        showMessage('success', 'Success!', data.message);
+      } else {
+        showMessage('error', 'Error', data.error);
+      }
+    })
+    .catch(error => {
+      console.error('Error:', error);
+      showMessage('error', 'Error', 'Failed to update absence. Check console.');
+    });
   }
   
-  document.getElementById('closeMessageBtn').addEventListener('click', closeMessageModal);
-  document.getElementById('messageModal').addEventListener('click', (e) => {
-    if (e.target === document.getElementById('messageModal')) closeMessageModal();
+  // Add absence button handler
+  document.querySelectorAll('.add-absence-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const studentId = this.getAttribute('data-id');
+      const studentName = this.getAttribute('data-name');
+      const currentAbsences = parseInt(this.getAttribute('data-absences'));
+      
+      if (confirm(`Add 1 absence for ${studentName}?\nCurrent absences: ${currentAbsences}/5`)) {
+        updateAbsence(studentId, 'add', this);
+      }
+    });
+  });
+  
+  // Remove absence button handler
+  document.querySelectorAll('.remove-absence-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      const studentId = this.getAttribute('data-id');
+      const studentName = this.getAttribute('data-name');
+      const currentAbsences = parseInt(this.getAttribute('data-absences'));
+      
+      if (confirm(`Remove 1 absence for ${studentName}?\nCurrent absences: ${currentAbsences}/5`)) {
+        updateAbsence(studentId, 'remove', this);
+      }
+    });
   });
   
   // Search functionality
   const searchInput = document.getElementById('searchInput');
-  const studentRows = document.querySelectorAll('.student-row');
-
   if (searchInput) {
     searchInput.addEventListener('keyup', function() {
       const searchTerm = this.value.toLowerCase();
-      
-      studentRows.forEach(row => {
-        const studentName = row.querySelector('.student-name');
-        const studentId = row.querySelector('.student-id');
-        
-        if (studentName && studentId) {
-          const name = studentName.textContent.toLowerCase();
-          const id = studentId.textContent.toLowerCase();
-          
-          if (name.includes(searchTerm) || id.includes(searchTerm)) {
-            row.style.display = '';
-          } else {
-            row.style.display = 'none';
-          }
-        }
+      document.querySelectorAll('.student-row').forEach(row => {
+        const name = row.querySelector('.student-name')?.textContent.toLowerCase() || '';
+        const id = row.querySelector('.student-id')?.textContent.toLowerCase() || '';
+        row.style.display = (name.includes(searchTerm) || id.includes(searchTerm)) ? '' : 'none';
       });
     });
   }
-
+  
   // Student Details Modal
   const modal = document.getElementById('studentDetailsModal');
   const modalContent = document.getElementById('modalContent');
   const closeModalBtn = document.getElementById('closeModalBtn');
   const closeModalFooterBtn = document.getElementById('closeModalFooterBtn');
-
+  
   function openModal() {
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -381,7 +458,7 @@
       modalContent.classList.add('scale-100', 'opacity-100');
     }, 10);
   }
-
+  
   function closeModal() {
     modalContent.classList.remove('scale-100', 'opacity-100');
     modalContent.classList.add('scale-95', 'opacity-0');
@@ -390,22 +467,17 @@
       modal.classList.remove('flex');
     }, 200);
   }
-
-  // Close modal with buttons
+  
   if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
   if (closeModalFooterBtn) closeModalFooterBtn.addEventListener('click', closeModal);
-
-  // Close modal when clicking outside
   if (modal) {
     modal.addEventListener('click', (e) => {
       if (e.target === modal) closeModal();
     });
   }
-
-  // View Student Details
+  
   document.querySelectorAll('.view-student-btn').forEach(btn => {
     btn.addEventListener('click', function() {
-      const studentId = this.dataset.id;
       const studentName = this.dataset.name;
       const studentEmail = this.dataset.email;
       const studentIdNum = this.dataset.studentId;
@@ -413,8 +485,7 @@
       const status = this.dataset.status;
       const absences = parseInt(this.dataset.absences);
       const course = this.dataset.course || 'BS Information Technology';
-
-      // Update modal content
+      
       document.getElementById('modalStudentName').textContent = studentName;
       document.getElementById('studentFullName').textContent = studentName;
       document.getElementById('studentEmail').textContent = studentEmail;
@@ -422,7 +493,6 @@
       document.getElementById('studentGenderDisplay').textContent = gender || 'Not specified';
       document.getElementById('studentCourse').textContent = `Course: ${course}`;
       
-      // Update status with appropriate color
       const statusSpan = document.getElementById('studentStatusDisplay');
       statusSpan.textContent = status;
       if (status === 'Dropped') {
@@ -433,71 +503,24 @@
         statusSpan.className = 'text-base md:text-lg font-semibold text-green-600';
       }
       
-      // Update absences
       const absencesSpan = document.getElementById('studentAbsencesDisplay');
       absencesSpan.textContent = `${absences} / 5`;
       
-      // Update progress bar
       const progressPercent = (absences / 5) * 100;
       const progressBar = document.getElementById('absenceProgressBar');
       progressBar.style.width = `${progressPercent}%`;
       
-      // Set progress bar color based on absences
-      if (absences >= 5) {
-        progressBar.className = 'h-full bg-red-600 rounded-full';
-      } else if (absences >= 4) {
-        progressBar.className = 'h-full bg-yellow-600 rounded-full';
-      } else {
-        progressBar.className = 'h-full bg-maroon rounded-full';
-      }
-      
-      // Update avatar
       const initials = studentName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
       document.getElementById('studentAvatar').textContent = initials;
       
-      // Show warning message if applicable
       const warningDiv = document.getElementById('warningMessage');
       if (absences >= 5) {
         warningDiv.className = 'mb-6 p-4 rounded-lg bg-red-50 border-l-4 border-red-500';
-        warningDiv.innerHTML = `
-          <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div>
-              <p class="text-sm font-semibold text-red-800">Student Dropped</p>
-              <p class="text-xs text-red-700">This student has exceeded the maximum allowed absences (5) and has been dropped from the class.</p>
-            </div>
-          </div>
-        `;
+        warningDiv.innerHTML = '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><div><p class="text-sm font-semibold text-red-800">Student Dropped</p><p class="text-xs text-red-700">This student has exceeded the maximum allowed absences (5) and has been dropped from the class.</p></div></div>';
         warningDiv.classList.remove('hidden');
       } else if (absences >= 4) {
         warningDiv.className = 'mb-6 p-4 rounded-lg bg-yellow-50 border-l-4 border-yellow-500';
-        warningDiv.innerHTML = `
-          <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
-            <div>
-              <p class="text-sm font-semibold text-yellow-800">⚠️ Final Warning</p>
-              <p class="text-xs text-yellow-700">This student has ${absences} absences. One more absence will result in being dropped from the class.</p>
-            </div>
-          </div>
-        `;
-        warningDiv.classList.remove('hidden');
-      } else if (absences >= 3) {
-        warningDiv.className = 'mb-6 p-4 rounded-lg bg-orange-50 border-l-4 border-orange-500';
-        warningDiv.innerHTML = `
-          <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            <div>
-              <p class="text-sm font-semibold text-orange-800">⚠️ Warning</p>
-              <p class="text-xs text-orange-700">This student has ${absences} absences. Only 2 remaining allowed absences.</p>
-            </div>
-          </div>
-        `;
+        warningDiv.innerHTML = '<div class="flex items-start gap-3"><svg class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><div><p class="text-sm font-semibold text-yellow-800">⚠️ Final Warning</p><p class="text-xs text-yellow-700">One more absence will result in being dropped from the class.</p></div></div>';
         warningDiv.classList.remove('hidden');
       } else {
         warningDiv.classList.add('hidden');
@@ -506,14 +529,14 @@
       openModal();
     });
   });
-
+  
   // Start Class Modal
   const startClassBtn = document.getElementById('startClassBtn');
   const startClassModal = document.getElementById('startClassModal');
   const closeStartClassModal = document.getElementById('closeStartClassModal');
   const cancelStartClass = document.getElementById('cancelStartClass');
   const confirmStartClass = document.getElementById('confirmStartClass');
-
+  
   function openStartClassModal() {
     if (startClassModal) {
       startClassModal.classList.remove('hidden');
@@ -525,14 +548,14 @@
       }
     }
   }
-
+  
   function closeStartClassModalFunc() {
     if (startClassModal) {
       startClassModal.classList.add('hidden');
       startClassModal.classList.remove('flex');
     }
   }
-
+  
   if (startClassBtn) {
     startClassBtn.addEventListener('click', openStartClassModal);
   }
@@ -559,23 +582,22 @@
       .then(response => response.json())
       .then(data => {
         if (data.success) {
-          showMessageModal('success', 'Class Started!', data.message);
+          showMessage('success', 'Class Started!', data.message);
           setTimeout(() => {
             window.location.href = `/active-class-session/${classId}/`;
           }, 1500);
         } else {
-          showMessageModal('error', 'Cannot Start Class', data.error);
+          showMessage('error', 'Cannot Start Class', data.error);
         }
       })
       .catch(error => {
         console.error('Error:', error);
-        showMessageModal('error', 'Error', 'Failed to start class session. Please check your connection.');
+        showMessage('error', 'Error', 'Failed to start class session.');
       });
       closeStartClassModalFunc();
     });
   }
-
-  // Close modal when clicking outside
+  
   if (startClassModal) {
     startClassModal.addEventListener('click', (e) => {
       if (e.target === startClassModal) {
@@ -583,13 +605,11 @@
       }
     });
   }
-
-  // Close modals with ESC key
+  
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (modal && !modal.classList.contains('hidden')) closeModal();
       if (startClassModal && !startClassModal.classList.contains('hidden')) closeStartClassModalFunc();
-      closeMessageModal();
     }
   });
 </script>

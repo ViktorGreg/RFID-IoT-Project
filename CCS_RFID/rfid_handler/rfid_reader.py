@@ -45,6 +45,24 @@ if ARDUINO_PORT is None:
 
 print(f"Using port: {ARDUINO_PORT}")
 
+# Global serial connection for LED control
+ser = None
+
+def blink_led(success=True):
+    """Blink LED on Arduino - success=True = fast blink, success=False = long blink"""
+    global ser
+    if ser is None:
+        return
+    try:
+        if success:
+            # Fast blink (success)
+            ser.write(b'LED_SUCCESS\n')
+        else:
+            # Long blink (fail)
+            ser.write(b'LED_FAIL\n')
+    except:
+        pass  # Don't crash if LED control fails
+
 def get_active_session():
     """Check if there's an active class session"""
     try:
@@ -93,6 +111,8 @@ def clear_pending_registration(student_id=None):
         pass
 
 def main():
+    global ser
+    
     print("=" * 60)
     print("RFID READER - Registration & Attendance (Auto-switching)")
     print("=" * 60)
@@ -173,6 +193,7 @@ def main():
                 if response.status_code == 200:
                     print(f"   ✅ RFID REGISTERED for {student_name}!")
                     print(f"   → Account created! You can now login.")
+                    blink_led(success=True)  # LED: success blink
                     # Clear the pending registration after successful registration
                     clear_pending_registration(student_id)
                     pending_start_time = None
@@ -180,6 +201,7 @@ def main():
                 else:
                     error_msg = response.json().get('error', 'Unknown error')
                     print(f"   ❌ Registration error: {error_msg}")
+                    blink_led(success=False)  # LED: fail blink
                     # If error, still clear pending to allow retry
                     if "already registered" in error_msg:
                         clear_pending_registration(student_id)
@@ -187,6 +209,7 @@ def main():
                         current_pending_student = None
             except Exception as e:
                 print(f"   ❌ Error: {e}")
+                blink_led(success=False)  # LED: fail blink
             continue  # Skip attendance - this was registration
         
         # Reset pending timeout if no pending registration
@@ -206,11 +229,14 @@ def main():
                 if response.status_code == 200:
                     result = response.json()
                     print(f"   ✅ {result.get('message')}")
+                    blink_led(success=True)  # LED: success blink
                 else:
                     error = response.json().get('error')
                     print(f"   ❌ {error}")
+                    blink_led(success=False)  # LED: fail blink
             except Exception as e:
                 print(f"   ❌ Error: {e}")
+                blink_led(success=False)  # LED: fail blink
             continue
         
         # No pending registration and no active session
@@ -226,11 +252,14 @@ def main():
                 if user_data.get('exists'):
                     print(f"   ℹ️ Card belongs to: {user_data.get('name')}")
                     print(f"   ⏳ No active session. Teacher must start a class for attendance.")
+                    blink_led(success=True)  # LED: blink to show card recognized
                 else:
                     print(f"   ❌ Card not registered.")
                     print(f"   → To register: Fill out the registration form first, then tap your card.")
+                    blink_led(success=False)  # LED: fail blink
         except:
             print(f"   ⏳ No active session and no pending registration.")
+            blink_led(success=False)
 
 if __name__ == "__main__":
     try:

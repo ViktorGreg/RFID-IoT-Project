@@ -50,4 +50,6 @@ urlpatterns = [
     path('api/attendance-stream/<int:session_id>/', views.attendance_stream, name='attendance_stream'),
     path('api/attendance-simple/<int:session_id>/', views.get_attendance_simple, name='attendance_simple'),
     path('pdf-report/delete-multiple/', views.delete_multiple_pdf_reports, name='delete_multiple_pdf_reports'),
+
+    path('api/update-student-absence/', views.update_student_absence, name='update_student_absence'),
 ]

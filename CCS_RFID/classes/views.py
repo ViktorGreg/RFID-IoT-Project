@@ -506,6 +506,7 @@ def view_class(request):
         student = enrollment.student
         students.append({
             'number': idx,
+            'id': student.id,  # ADD THIS LINE - THIS IS THE ID!
             'student_id': student.student_id if hasattr(student, 'student_id') else '',
             'name': student.get_full_name(),
             'email': student.email,
@@ -1679,3 +1680,75 @@ def get_attendance_simple(request, session_id):
         })
     except:
         return JsonResponse({'attendance': []})
+    
+@csrf_exempt
+@login_required
+def update_student_absence(request):
+    """Update student absence count (add or remove)"""
+    if request.method == 'POST':
+        try:
+            # Get data from POST only (don't access request.body)
+            student_id = request.POST.get('student_id')
+            class_id = request.POST.get('class_id')
+            action = request.POST.get('action')
+            
+            print(f"=== UPDATE ABSENCE ===")
+            print(f"Student ID from POST: '{student_id}'")
+            print(f"Class ID: {class_id}")
+            print(f"Action: {action}")
+            print(f"All POST data: {dict(request.POST)}")
+            
+            if not student_id:
+                return JsonResponse({'success': False, 'error': 'Student ID is missing. Please refresh the page and try again.'}, status=400)
+            
+            if not class_id:
+                return JsonResponse({'success': False, 'error': 'Class ID is missing'}, status=400)
+            
+            if not action:
+                return JsonResponse({'success': False, 'error': 'Action is missing'}, status=400)
+            
+            enrollment = Enrollment.objects.get(student_id=student_id, class_obj_id=class_id)
+            
+            if action == 'add':
+                if enrollment.absence_count >= 5:
+                    return JsonResponse({'success': False, 'error': 'Student already has 5 absences.'}, status=400)
+                enrollment.absence_count += 1
+                if enrollment.absence_count >= 5:
+                    enrollment.status = 'dropped'
+                    message = f'Student dropped due to 5 absences.'
+                else:
+                    message = f'Absence added. Now has {enrollment.absence_count}/5.'
+                    
+            elif action == 'remove':
+                if enrollment.absence_count <= 0:
+                    return JsonResponse({'success': False, 'error': 'Cannot remove absence below 0.'}, status=400)
+                enrollment.absence_count -= 1
+                if enrollment.status == 'dropped' and enrollment.absence_count < 5:
+                    enrollment.status = 'enrolled'
+                    message = f'Absence removed. Student re-enrolled. Now has {enrollment.absence_count}/5.'
+                else:
+                    message = f'Absence removed. Now has {enrollment.absence_count}/5.'
+            else:
+                return JsonResponse({'success': False, 'error': 'Invalid action'}, status=400)
+            
+            enrollment.save()
+            
+            print(f"New absences: {enrollment.absence_count}")
+            
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'new_absences': enrollment.absence_count,
+                'status': enrollment.status
+            })
+            
+        except Enrollment.DoesNotExist:
+            print(f"Enrollment not found for student {student_id} and class {class_id}")
+            return JsonResponse({'success': False, 'error': 'Enrollment not found'}, status=404)
+        except Exception as e:
+            print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=400)

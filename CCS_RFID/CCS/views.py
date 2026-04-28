@@ -682,3 +682,42 @@ def clear_pending_rfid(request):
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
     return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+@csrf_exempt
+def api_login(request):
+    """API endpoint for login"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            email = data.get('email')
+            password = data.get('password')
+            
+            user = authenticate(request, username=email, password=password)
+            
+            if user is not None:
+                login(request, user)
+                if user.user_type == 'superadmin':
+                    return JsonResponse({
+                        'success': True,
+                        'user_type': user.user_type,
+                        'redirect_url': '/super-dashboard/'
+                    })
+                elif user.user_type == 'admin':
+                    return JsonResponse({
+                        'success': True,
+                        'user_type': user.user_type,
+                        'redirect_url': '/dashboard/'
+                    })
+                elif user.user_type == 'student':
+                    return JsonResponse({
+                        'success': True,
+                        'user_type': user.user_type,
+                        'redirect_url': '/stud_dashboard/'
+                    })
+                else:
+                    return JsonResponse({'success': False, 'error': 'Unknown user type'}, status=401)
+            else:
+                return JsonResponse({'success': False, 'error': 'Invalid email or password'}, status=401)
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)

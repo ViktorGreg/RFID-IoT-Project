@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Super Admin Activity Log - Attendance Tracker System{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6 max-w-7xl">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800">Super Admin Activity Log</h1>
+        <p class="text-gray-500 text-sm mt-1">View all system activities including user management and attendance records</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-xs font-semibold uppercase tracking-widest">Total Activities</p>
+                    <p class="text-2xl font-bold text-gray-800 mt-1" id="totalRecords">0</p>
+                </div>
+                <div class="w-10 h-10 bg-maroon/10 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-xs font-semibold uppercase tracking-widest">User Actions</p>
+                    <p class="text-2xl font-bold text-blue-600 mt-1" id="userActionsCount">0</p>
+                </div>
+                <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-xs font-semibold uppercase tracking-widest">Attendance</p>
+                    <p class="text-2xl font-bold text-green-600 mt-1" id="attendanceCount">0</p>
+                </div>
+                <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 hover:shadow-md transition">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-gray-500 text-xs font-semibold uppercase tracking-widest">RFID Changes</p>
+                    <p class="text-2xl font-bold text-purple-600 mt-1" id="rfidChangesCount">0</p>
+                </div>
+                <div class="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="12" cy="12" r="10"/>
+                        <path d="M12 6v6l4 2"/>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Bar -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <svg class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                    </svg>
+                    <input type="text" id="searchInput" placeholder="Search by user, description, or type..." 
+                           class="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
+                </div>
+            </div>
+            <select id="typeFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
+                <option value="all">All Activities</option>
+                <option value="attendance">Attendance</option>
+                <option value="user_created">User Created</option>
+                <option value="user_updated">User Updated</option>
+                <option value="user_deleted">User Deleted</option>
+                <option value="rfid_changed">RFID Changed</option>
+            </select>
+            <div class="flex gap-2 items-center">
+                <input type="date" id="startDate" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
+                <span class="text-gray-400">→</span>
+                <input type="date" id="endDate" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-maroon focus:border-maroon">
+            </div>
+            <button id="clearFiltersBtn" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition">Clear Filters</button>
+            <button id="refreshBtn" class="px-4 py-2 bg-gradient-to-r from-maroon to-maroon-dark hover:from-maroon-dark hover:to-maroon text-white rounded-lg transition shadow-sm flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="hidden text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-maroon"></div>
+        <p class="text-gray-500 mt-3">Loading activity log...</p>
+    </div>
+
+    <!-- Activity Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[800px]">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">User / Actor</th>
+                        <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Action</th>
+                        <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Details</th>
+                        <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Type</th>
+                        <th class="px-4 md:px-6 py-4 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody id="activityTableBody" class="divide-y divide-gray-100">
+                    <tr><td colspan="5" class="text-center py-12 text-gray-400">Loading activities...</td</tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-4 md:px-6 py-4 border-t border-gray-200 bg-gray-50">
+            <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p class="text-sm text-gray-600" id="paginationInfo">Showing 0 to 0 of 0 results</p>
+                <div class="flex gap-2">
+                    <button id="prevPage" disabled class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">Previous</button>
+                    <span id="pageIndicator" class="px-3 py-1 text-sm text-gray-600">Page 1</span>
+                    <button id="nextPage" disabled class="px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allActivities = [];
+    let filteredActivities = [];
+    let currentPage = 1;
+    const rowsPerPage = 10;
+    
+    function getActivityTypeIcon(type) {
+        const icons = {
+            'attendance': '📋',
+            'user_created': '👤',
+            'user_updated': '✏️',
+            'user_deleted': '🗑️',
+            'rfid_changed': '🔑'
+        };
+        return icons[type] || '📌';
+    }
+    
+    function getActivityTypeBadge(type) {
+        const badges = {
+            'attendance': 'bg-green-100 text-green-700',
+            'user_created': 'bg-blue-100 text-blue-700',
+            'user_updated': 'bg-yellow-100 text-yellow-700',
+            'user_deleted': 'bg-red-100 text-red-700',
+            'rfid_changed': 'bg-purple-100 text-purple-700'
+        };
+        return badges[type] || 'bg-gray-100 text-gray-700';
+    }
+    
+    async function loadActivities() {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const tableBody = document.getElementById('activityTableBody');
+        
+        loadingIndicator.classList.remove('hidden');
+        tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-400">Loading activities...</td</tr>';
+        
+        try {
+            const response = await fetch('/api/super-activity-log/');
+            const data = await response.json();
+            
+            if (data.success && data.activities) {
+                allActivities = data.activities;
+                console.log('Loaded', allActivities.length, 'activities');
+                applyFilters();
+            } else {
+                tableBody.innerHTML = `<tr><td colspan="5" class="text-center py-12 text-red-400">Error: ${data.error || 'No data'}</td</tr>`;
+                loadingIndicator.classList.add('hidden');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-red-400">Failed to load activities</td</tr>';
+            loadingIndicator.classList.add('hidden');
+        }
+    }
+    
+    function applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const typeFilter = document.getElementById('typeFilter').value;
+        const startDate = document.getElementById('startDate').value;
+        const endDate = document.getElementById('endDate').value;
+        
+        filteredActivities = allActivities.filter(activity => {
+            // Search filter
+            const matchesSearch = searchTerm === '' || 
+                activity.actor_name?.toLowerCase().includes(searchTerm) ||
+                activity.action?.toLowerCase().includes(searchTerm) ||
+                activity.details?.toLowerCase().includes(searchTerm);
+            
+            // Type filter
+            const matchesType = typeFilter === 'all' || activity.type === typeFilter;
+            
+            // Date filter
+            let matchesDate = true;
+            if (startDate && endDate) {
+                const activityDate = new Date(activity.timestamp);
+                const start = new Date(startDate);
+                const end = new Date(endDate);
+                matchesDate = activityDate >= start && activityDate <= end;
+            }
+            
+            return matchesSearch && matchesType && matchesDate;
+        });
+        
+        console.log('Filtered to', filteredActivities.length, 'activities');
+        updateStats();
+        currentPage = 1;
+        renderTable();
+        document.getElementById('loadingIndicator').classList.add('hidden');
+    }
+    
+    function clearFilters() {
+        document.getElementById('searchInput').value = '';
+        document.getElementById('typeFilter').value = 'all';
+        document.getElementById('startDate').value = '';
+        document.getElementById('endDate').value = '';
+        applyFilters();
+    }
+    
+    function updateStats() {
+        const total = filteredActivities.length;
+        const userActions = filteredActivities.filter(a => a.type !== 'attendance').length;
+        const attendance = filteredActivities.filter(a => a.type === 'attendance').length;
+        const rfidChanges = filteredActivities.filter(a => a.type === 'rfid_changed').length;
+        
+        document.getElementById('totalRecords').innerText = total;
+        document.getElementById('userActionsCount').innerText = userActions;
+        document.getElementById('attendanceCount').innerText = attendance;
+        document.getElementById('rfidChangesCount').innerText = rfidChanges;
+    }
+    
+    function renderTable() {
+        const tableBody = document.getElementById('activityTableBody');
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        const pageActivities = filteredActivities.slice(start, end);
+        
+        if (pageActivities.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-12 text-gray-400">No activities found</td</tr>';
+            document.getElementById('paginationInfo').textContent = 'Showing 0 to 0 of 0 results';
+            document.getElementById('pageIndicator').textContent = 'Page 1 of 1';
+            document.getElementById('prevPage').disabled = true;
+            document.getElementById('nextPage').disabled = true;
+            return;
+        }
+        
+        tableBody.innerHTML = pageActivities.map(activity => {
+            const badgeClass = getActivityTypeBadge(activity.type);
+            const icon = getActivityTypeIcon(activity.type);
+            
+            return `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 md:px-6 py-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-8 h-8 rounded-full bg-maroon/10 flex items-center justify-center text-maroon font-semibold text-xs">
+                                ${getInitials(activity.actor_name)}
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium text-gray-800">${escapeHtml(activity.actor_name)}</p>
+                                <p class="text-xs text-gray-500">${escapeHtml(activity.actor_email)}</p>
+                            </div>
+                        </div>
+                     </div>
+                    </note>
+                    <td class="px-4 md:px-6 py-3">
+                        <span class="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${badgeClass}">
+                            ${icon} ${formatAction(activity.action)}
+                        </span>
+                     </note>
+                    <td class="px-4 md:px-6 py-3">
+                        <p class="text-sm text-gray-700">${escapeHtml(activity.details)}</p>
+                        ${activity.target_name ? `<p class="text-xs text-gray-500 mt-1">Target: ${escapeHtml(activity.target_name)}</p>` : ''}
+                     </note>
+                    <td class="px-4 md:px-6 py-3">
+                        <span class="text-xs text-gray-600">${formatType(activity.type)}</span>
+                     </note>
+                    <td class="px-4 md:px-6 py-3">
+                        <p class="text-sm text-gray-600">${escapeHtml(activity.timestamp)}</p>
+                        <p class="text-xs text-gray-400">${activity.time_ago || ''}</p>
+                     </note>
+                  </tr>
+            `;
+        }).join('');
+        
+        const totalPages = Math.ceil(filteredActivities.length / rowsPerPage);
+        const startNum = start + 1;
+        const endNum = Math.min(end, filteredActivities.length);
+        document.getElementById('paginationInfo').textContent = `Showing ${startNum} to ${endNum} of ${filteredActivities.length} results`;
+        document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${totalPages || 1}`;
+        document.getElementById('prevPage').disabled = currentPage === 1;
+        document.getElementById('nextPage').disabled = currentPage >= totalPages;
+    }
+    
+    function formatAction(action) {
+        const actions = {
+            'created': 'Created',
+            'updated': 'Updated',
+            'deleted': 'Deleted',
+            'recorded_attendance': 'Recorded Attendance',
+            'changed_rfid': 'Changed RFID'
+        };
+        return actions[action] || action;
+    }
+    
+    function formatType(type) {
+        const types = {
+            'attendance': 'Attendance',
+            'user_created': 'User Creation',
+            'user_updated': 'User Update',
+            'user_deleted': 'User Deletion',
+            'rfid_changed': 'RFID Change'
+        };
+        return types[type] || type;
+    }
+    
+    function getInitials(name) {
+        if (!name) return '??';
+        return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+    }
+    
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+    
+    // Event listeners
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('typeFilter').addEventListener('change', applyFilters);
+    document.getElementById('startDate').addEventListener('change', applyFilters);
+    document.getElementById('endDate').addEventListener('change', applyFilters);
+    document.getElementById('refreshBtn').addEventListener('click', loadActivities);
+    document.getElementById('clearFiltersBtn').addEventListener('click', clearFilters);
+    document.getElementById('prevPage').addEventListener('click', () => { if (currentPage > 1) { currentPage--; renderTable(); } });
+    document.getElementById('nextPage').addEventListener('click', () => {
+        const totalPages = Math.ceil(filteredActivities.length / rowsPerPage);
+        if (currentPage < totalPages) { currentPage++; renderTable(); }
+    });
+    
+    // Initialize
+    loadActivities();
+</script>
+{% endblock %}

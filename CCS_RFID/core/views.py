@@ -7,6 +7,8 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db import models as db_models
 from classes.models import Enrollment, Class, ClassSession, Attendance
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.hashers import check_password
 from CCS.models import User
 import json
 import re
@@ -620,3 +622,184 @@ def delete_user(request, user_id):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+@login_required
+def super_dashboard(request):
+    """Super Admin Dashboard with system overview"""
+    from classes.models import Class, ClassSession, Attendance
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Check if user is superadmin
+    if request.user.user_type != 'superadmin':
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    
+    # Get all users
+    all_users = User.objects.all()
+    total_users = all_users.count()
+    total_students = all_users.filter(user_type='student').count()
+    total_admins = all_users.filter(user_type='admin').count()
+    total_superadmins = all_users.filter(user_type='superadmin').count()
+    
+    # Calculate percentages
+    total_users_for_percent = total_users if total_users > 0 else 1
+    total_students_percent = int((total_students / total_users_for_percent) * 100)
+    total_admins_percent = int((total_admins / total_users_for_percent) * 100)
+    total_superadmins_percent = int((total_superadmins / total_users_for_percent) * 100)
+    
+    # Get total classes
+    total_classes = Class.objects.count()
+    
+    # Get recent users (last 10)
+    recent_users = User.objects.all().order_by('-date_joined')[:10]
+    
+    # Get recent activities (last 10 attendance records)
+    recent_activities = []
+    recent_attendances = Attendance.objects.all().select_related('student', 'session__class_obj').order_by('-time_in')[:10]
+    
+    for attendance in recent_attendances:
+        # Calculate time ago
+        time_diff = timezone.now() - attendance.time_in
+        if time_diff.days > 0:
+            time_ago = f"{time_diff.days} day(s) ago"
+        elif time_diff.seconds > 3600:
+            hours = time_diff.seconds // 3600
+            time_ago = f"{hours} hour(s) ago"
+        elif time_diff.seconds > 60:
+            minutes = time_diff.seconds // 60
+            time_ago = f"{minutes} minute(s) ago"
+        else:
+            time_ago = "Just now"
+        
+        recent_activities.append({
+            'type': 'attendance',
+            'description': f"{attendance.student.get_full_name()} marked as {attendance.status} in {attendance.session.class_obj.subject_code if attendance.session else 'N/A'}",
+            'timestamp': attendance.time_in.strftime('%b %d, %Y at %I:%M %p'),
+            'time_ago': time_ago
+        })
+    
+    context = {
+        'total_users': total_users,
+        'total_students': total_students,
+        'total_admins': total_admins,
+        'total_superadmins': total_superadmins,
+        'total_students_percent': total_students_percent,
+        'total_admins_percent': total_admins_percent,
+        'total_superadmins_percent': total_superadmins_percent,
+        'total_classes': total_classes,
+        'recent_users': recent_users,
+        'recent_activities': recent_activities,
+    }
+    return render(request, 'super_dashboard.html', context)
+
+@login_required
+def get_super_activity_log(request):
+    """API endpoint to get ALL system activities for Super Admin"""
+    from django.utils import timezone
+    from datetime import timedelta
+    
+    # Check if user is superadmin
+    if request.user.user_type != 'superadmin':
+        return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+    
+    activities = []
+    
+    # Get all attendance records
+    attendances = Attendance.objects.all().select_related('student', 'session__class_obj').order_by('-time_in')
+    
+    for att in attendances:
+        # Calculate time ago
+        time_diff = timezone.now() - att.time_in
+        if time_diff.days > 0:
+            time_ago = f"{time_diff.days} day(s) ago"
+        elif time_diff.seconds > 3600:
+            hours = time_diff.seconds // 3600
+            time_ago = f"{hours} hour(s) ago"
+        elif time_diff.seconds > 60:
+            minutes = time_diff.seconds // 60
+            time_ago = f"{minutes} minute(s) ago"
+        else:
+            time_ago = "Just now"
+        
+        activities.append({
+            'id': att.id,
+            'actor_name': att.student.get_full_name(),
+            'actor_email': att.student.email,
+            'type': 'attendance',
+            'action': 'recorded_attendance',
+            'details': f"Marked as {att.status} in {att.session.class_obj.subject_code if att.session else 'N/A'}",
+            'target_name': att.session.class_obj.subject_code if att.session else 'N/A',
+            'timestamp': att.time_in.strftime('%B %d, %Y at %I:%M %p'),
+            'time_ago': time_ago
+        })
+    
+    # Sort by timestamp (newest first)
+    activities.sort(key=lambda x: x['timestamp'], reverse=True)
+    
+    return JsonResponse({
+        'success': True,
+        'activities': activities
+    })
+
+@login_required
+def super_activity(request):
+    """Super Admin Activity Log page"""
+    # Check if user is superadmin
+    if request.user.user_type != 'superadmin':
+        messages.error(request, 'You do not have permission to access this page.')
+        return redirect('dashboard')
+    return render(request, 'super_activity.html')
+
+@login_required
+def profile(request):
+    """User profile page for all user types"""
+    if request.method == 'POST':
+        try:
+            # Update personal information
+            request.user.first_name = request.POST.get('first_name')
+            request.user.middle_name = request.POST.get('middle_name', '')
+            request.user.last_name = request.POST.get('last_name')
+            
+            # Student-specific fields
+            if request.user.user_type == 'student':
+                request.user.email = request.POST.get('email')
+                dob = request.POST.get('date_of_birth')
+                if dob:
+                    request.user.date_of_birth = dob
+                request.user.gender = request.POST.get('gender')
+                request.user.civil_status = request.POST.get('civil_status')
+                request.user.contact_number = request.POST.get('contact_number', '')
+                request.user.contact_person = request.POST.get('contact_person', '')
+                request.user.department = request.POST.get('department')
+                request.user.course = request.POST.get('course')
+            
+            # Password change
+            current_password = request.POST.get('current_password')
+            new_password = request.POST.get('new_password')
+            
+            if new_password:
+                if not current_password:
+                    messages.error(request, 'Current password is required to change password.')
+                    return redirect('profile')
+                
+                if not check_password(current_password, request.user.password):
+                    messages.error(request, 'Current password is incorrect.')
+                    return redirect('profile')
+                
+                if len(new_password) < 8:
+                    messages.error(request, 'New password must be at least 8 characters long.')
+                    return redirect('profile')
+                
+                request.user.set_password(new_password)
+                update_session_auth_hash(request, request.user)
+                messages.success(request, 'Password changed successfully!')
+            
+            request.user.save()
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('profile')
+            
+        except Exception as e:
+            messages.error(request, f'Error updating profile: {str(e)}')
+    
+    return render(request, 'profile.html', {'user': request.user})

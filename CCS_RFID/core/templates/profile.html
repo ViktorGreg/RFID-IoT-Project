@@ -1,0 +1,263 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}My Profile - Attendance Tracker System{% endblock %}
+
+{% block content %}
+<style>
+    .profile-avatar {
+        transition: transform 0.2s;
+    }
+    .profile-avatar:hover {
+        transform: scale(1.05);
+    }
+    .info-card {
+        transition: all 0.2s;
+    }
+    .info-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+</style>
+
+<div class="container mx-auto px-4 py-6 max-w-5xl">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-800">My Profile</h1>
+        <p class="text-gray-500 text-sm mt-1">View and manage your account information</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Profile Sidebar -->
+        <div class="lg:col-span-1">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-6">
+                <!-- Avatar Section -->
+                <div class="bg-gradient-to-r from-maroon to-maroon-dark p-6 text-center">
+                    <div class="profile-avatar w-32 h-32 mx-auto rounded-full bg-white/20 border-4 border-white flex items-center justify-center mb-4">
+                        {% if user.user_type == 'superadmin' %}
+                            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                            </svg>
+                        {% elif user.user_type == 'admin' %}
+                            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                        {% else %}
+                            <svg class="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 6.25278V19.2528M12 6.25278C10.8321 5.47686 9.24649 5 7.5 5C5.75351 5 4.16789 5.47686 3 6.25278M12 6.25278C13.1679 5.47686 14.7535 5 16.5 5C18.2465 5 19.8321 5.47686 21 6.25278"/>
+                            </svg>
+                        {% endif %}
+                    </div>
+                    <h2 class="text-white text-xl font-semibold">{{ user.get_full_name }}</h2>
+                    <p class="text-white/70 text-sm mt-1">
+                        {% if user.user_type == 'superadmin' %}
+                            Super Administrator
+                        {% elif user.user_type == 'admin' %}
+                            Administrator
+                        {% else %}
+                            Student
+                        {% endif %}
+                    </p>
+                    <p class="text-white/50 text-xs mt-2">Member since {{ user.date_joined|date:"F Y" }}</p>
+                </div>
+
+                <!-- Quick Info -->
+                <div class="p-4 border-b border-gray-100">
+                    <div class="flex items-center gap-3 mb-3">
+                        <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <span class="text-sm text-gray-600">{{ user.email }}</span>
+                    </div>
+                    {% if user.student_id %}
+                    <div class="flex items-center gap-3">
+                        <svg class="w-5 h-5 text-maroon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"/>
+                            <path d="M12 6v6l4 2"/>
+                        </svg>
+                        <span class="text-sm text-gray-600">Student ID: {{ user.student_id }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="p-4">
+                    <a href="{% url 'logout' %}" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                        </svg>
+                        Logout
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Edit Form -->
+        <div class="lg:col-span-2">
+            <form method="POST" action="{% url 'profile' %}" id="profileForm">
+                {% csrf_token %}
+                
+                <!-- Personal Information -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h2 class="text-sm font-semibold text-gray-700 tracking-wide">Personal Information</h2>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                                <input type="text" name="first_name" value="{{ user.first_name }}" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                                <input type="text" name="middle_name" value="{{ user.middle_name|default:'' }}"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                                <input type="text" name="last_name" value="{{ user.last_name }}" required
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                        </div>
+
+                        {% if user.user_type == 'student' %}
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                            <input type="email" name="email" value="{{ user.email }}" required
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            <p class="text-xs text-gray-500 mt-1">Only @wmsu.edu.ph email addresses are allowed</p>
+                        </div>
+                        {% endif %}
+
+                        {% if user.user_type == 'student' %}
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                <input type="date" name="date_of_birth" value="{{ user.date_of_birth|date:'Y-m-d'|default:'' }}"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                                <select name="gender" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male" {% if user.gender == 'Male' %}selected{% endif %}>Male</option>
+                                    <option value="Female" {% if user.gender == 'Female' %}selected{% endif %}>Female</option>
+                                    <option value="Prefer not to say" {% if user.gender == 'Prefer not to say' %}selected{% endif %}>Prefer not to say</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Civil Status</label>
+                                <select name="civil_status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                                    <option value="">Select Status</option>
+                                    <option value="Single" {% if user.civil_status == 'Single' %}selected{% endif %}>Single</option>
+                                    <option value="Married" {% if user.civil_status == 'Married' %}selected{% endif %}>Married</option>
+                                    <option value="Divorced" {% if user.civil_status == 'Divorced' %}selected{% endif %}>Divorced</option>
+                                    <option value="Widowed" {% if user.civil_status == 'Widowed' %}selected{% endif %}>Widowed</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Number</label>
+                                <input type="tel" name="contact_number" value="{{ user.contact_number|default:'' }}"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                            <input type="text" name="contact_person" value="{{ user.contact_person|default:'' }}"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Department</label>
+                                <select name="department" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                                    <option value="">Select Department</option>
+                                    <option value="Information Technology" {% if user.department == 'Information Technology' %}selected{% endif %}>Information Technology</option>
+                                    <option value="Computer Science" {% if user.department == 'Computer Science' %}selected{% endif %}>Computer Science</option>
+                                    <option value="ACT Application Development" {% if user.department == 'ACT Application Development' %}selected{% endif %}>ACT Application Development</option>
+                                    <option value="ACT Networking" {% if user.department == 'ACT Networking' %}selected{% endif %}>ACT Networking</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Course</label>
+                                <select name="course" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                                    <option value="">Select Course</option>
+                                    <option value="BS Information Technology" {% if user.course == 'BS Information Technology' %}selected{% endif %}>BS Information Technology</option>
+                                    <option value="BS Computer Science" {% if user.course == 'BS Computer Science' %}selected{% endif %}>BS Computer Science</option>
+                                    <option value="Application Development" {% if user.course == 'Application Development' %}selected{% endif %}>Application Development</option>
+                                    <option value="Networking" {% if user.course == 'Networking' %}selected{% endif %}>Networking</option>
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Change Password Section -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+                    <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                        <h2 class="text-sm font-semibold text-gray-700 tracking-wide">Change Password</h2>
+                        <p class="text-xs text-gray-500 mt-0.5">Leave empty if you don't want to change password</p>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+                            <input type="password" name="current_password" id="currentPassword"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                                <input type="password" name="new_password" id="newPassword"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                                <input type="password" name="confirm_password" id="confirmPassword"
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-maroon focus:border-maroon">
+                            </div>
+                        </div>
+                        <div id="passwordError" class="text-red-600 text-sm hidden"></div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex justify-end gap-3">
+                    <a href="{% url 'dashboard' %}" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition">Cancel</a>
+                    <button type="submit" class="px-4 py-2 bg-maroon text-white rounded-lg hover:bg-maroon-dark transition">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('profileForm').addEventListener('submit', function(e) {
+        const newPassword = document.getElementById('newPassword').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+        const passwordError = document.getElementById('passwordError');
+        
+        if (newPassword || confirmPassword) {
+            if (newPassword !== confirmPassword) {
+                e.preventDefault();
+                passwordError.textContent = 'New passwords do not match';
+                passwordError.classList.remove('hidden');
+                return false;
+            }
+            if (newPassword.length < 8) {
+                e.preventDefault();
+                passwordError.textContent = 'Password must be at least 8 characters long';
+                passwordError.classList.remove('hidden');
+                return false;
+            }
+        }
+        passwordError.classList.add('hidden');
+        return true;
+    });
+</script>
+{% endblock %}

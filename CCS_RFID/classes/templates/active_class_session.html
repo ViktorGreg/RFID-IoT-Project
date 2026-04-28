@@ -105,7 +105,7 @@
         </button>
         <button id="endWithoutPdfBtn" class="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 rounded-lg">
           <div class="flex items-center gap-3">
-            <svg class="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <rect x="3" y="4" width="18" height="18" rx="2"/>
               <line x1="8" y1="2" x2="8" y2="6"/>
               <line x1="16" y1="2" x2="16" y2="6"/>
@@ -211,47 +211,87 @@
 <script>
   const SESSION_ID = {{ session.id }};
   const CLASS_ID = {{ class.id }};
-  let lastCount = {{ present_count }};
   
-  function showModal(message, timeIn) {
+  // Store previous attendance data to compare
+  let previousAttendance = {};
+  
+  // Initialize previous attendance from initial data
+  {% for student in students %}
+    previousAttendance[{{ student.id }}] = '{{ student.status|default:"absent" }}';
+  {% endfor %}
+  
+  function showModal(studentName, timeIn, status) {
     const modal = document.getElementById('attendanceModal');
-    document.getElementById('modalMessage').innerHTML = message;
-    if (timeIn) document.getElementById('modalTime').innerHTML = '⏰ Time in: ' + timeIn;
+    const modalMessage = document.getElementById('modalMessage');
+    const modalTime = document.getElementById('modalTime');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalIcon = document.getElementById('modalIcon');
+    
+    if (status === 'late') {
+      modalTitle.innerHTML = '⚠️ Late!';
+      modalIcon.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+      modalMessage.innerHTML = studentName + ' tapped their ID but was LATE!';
+    } else {
+      modalTitle.innerHTML = '✅ Success!';
+      modalIcon.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+      modalMessage.innerHTML = studentName + ' tapped their ID!';
+    }
+    
+    if (timeIn) {
+      modalTime.innerHTML = '⏰ Time in: ' + timeIn;
+    }
+    
     modal.classList.add('active');
-    setTimeout(function() { modal.classList.remove('active'); }, 3000);
+    setTimeout(function() { 
+      modal.classList.remove('active'); 
+    }, 3000);
   }
   
   function updateTable() {
     fetch('/api/attendance-simple/' + SESSION_ID + '/')
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        var newCount = data.present_count + data.late_count;
-        if (newCount > lastCount) {
-          // New attendance detected!
-          document.getElementById('presentCount').innerHTML = data.present_count;
-          document.getElementById('lateCount').innerHTML = data.late_count;
+        // Update counts
+        document.getElementById('presentCount').innerHTML = data.present_count;
+        document.getElementById('lateCount').innerHTML = data.late_count;
+        document.getElementById('attendanceRate').innerHTML = data.attendance_rate || '0';
+        
+        // Check each attendance record for NEW changes
+        for (var i = 0; i < data.attendance.length; i++) {
+          var att = data.attendance[i];
+          var studentId = att.student_id;
+          var currentStatus = att.status;
+          var previousStatus = previousAttendance[studentId];
           
-          // Update the table
-          for (var i = 0; i < data.attendance.length; i++) {
-            var att = data.attendance[i];
-            var rows = document.querySelectorAll('#attendanceTableBody tr');
-            for (var r = 0; r < rows.length; r++) {
-              if (rows[r].getAttribute('data-student-id') == att.student_id) {
-                var statusCell = rows[r].querySelector('.status-cell');
-                var timeCell = rows[r].querySelector('.time-cell');
-                if (att.status === 'present') {
-                  statusCell.innerHTML = '<span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">✅ Present</span>';
-                } else {
-                  statusCell.innerHTML = '<span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">⚠️ Late</span>';
-                }
-                timeCell.innerHTML = att.time_in;
-                showModal(att.student_name + ' tapped their ID!', att.time_in);
-                break;
+          // Only show modal if status changed from absent/not recorded to present/late
+          if (previousStatus !== currentStatus && (currentStatus === 'present' || currentStatus === 'late')) {
+            // Show modal for the student who just tapped
+            showModal(att.student_name, att.time_in, currentStatus);
+          }
+          
+          // Update previous status
+          previousAttendance[studentId] = currentStatus;
+          
+          // Update the table row
+          var rows = document.querySelectorAll('#attendanceTableBody tr');
+          for (var r = 0; r < rows.length; r++) {
+            if (parseInt(rows[r].getAttribute('data-student-id')) === studentId) {
+              var statusCell = rows[r].querySelector('.status-cell');
+              var timeCell = rows[r].querySelector('.time-cell');
+              
+              if (currentStatus === 'present') {
+                statusCell.innerHTML = '<span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">✅ Present</span>';
+              } else if (currentStatus === 'late') {
+                statusCell.innerHTML = '<span class="px-3 py-1.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">⚠️ Late</span>';
               }
+              timeCell.innerHTML = att.time_in || '—';
+              break;
             }
           }
-          lastCount = newCount;
         }
+      })
+      .catch(function(err) {
+        console.error('Error fetching attendance:', err);
       });
   }
   

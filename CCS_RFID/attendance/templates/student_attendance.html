@@ -16,7 +16,7 @@
       {{ user.get_full_name }}
     </p>
     <p class="text-white/50 text-xs mb-5">
-      Student ID: {{ user.id }} | Track your attendance across all subjects
+      Student ID: {{ user.student_id|default:user.id }} | Track your attendance across all subjects
     </p>
   </div>
 </div>
@@ -198,7 +198,6 @@
 <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
   <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
     <h2 class="text-sm font-semibold text-gray-700 tracking-wide">Recent Attendance History</h2>
-    <a href="#" class="text-xs text-maroon font-medium hover:underline">View All</a>
   </div>
 
   <div class="overflow-x-auto">
@@ -216,18 +215,17 @@
         <tr class="hover:bg-gray-50 transition-colors">
           <td class="px-5 py-3 text-sm text-gray-700">{{ record.date|date:"Y-m-d" }}</td>
           <td class="px-5 py-3">
-            <p class="text-sm font-medium text-gray-800">{{ record.subject.name }}</p>
-            <p class="text-xs text-gray-500">{{ record.subject.code }}</p>
+            <p class="text-sm font-medium text-gray-800">{{ record.subject_name }}</p>
+            <p class="text-xs text-gray-500">{{ record.subject_code }}</p>
           </td>
           <td class="px-5 py-3 text-sm text-gray-700">{{ record.time_in|time:"g:i A" }}</td>
           <td class="px-5 py-3">
-            {% if record.status == 'present' %}
-              <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">Present</span>
-            {% elif record.status == 'late' %}
-              <span class="px-2 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-700">Late</span>
-            {% else %}
-              <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700">Absent</span>
-            {% endif %}
+            <span class="px-2 py-1 rounded-full text-xs font-semibold 
+                {% if record.status == 'present' %}bg-green-100 text-green-700
+                {% elif record.status == 'late' %}bg-yellow-100 text-yellow-700
+                {% else %}bg-red-100 text-red-700{% endif %}">
+              {{ record.status|title }}
+            </span>
           </td>
         </tr>
         {% empty %}
